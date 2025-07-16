@@ -1,0 +1,134 @@
+{
+    "id": "834d2fca-2167-466d-a692-0bd2e17b3333",
+    "appId": "fb690a6d-583d-45fc-94e6-f0efe5bb9cb9",
+    "displayName": "bot-sso-aad",
+    "identifierUris": [
+        "api://botid-5239a4f8-d72c-44b9-b4f2-c1626f064de7"
+    ],
+    "signInAudience": "AzureADMyOrg",
+    "api": {
+        "requestedAccessTokenVersion": 2,
+        "oauth2PermissionScopes": [
+            {
+                "adminConsentDescription": "Allows Teams to call the app's web APIs as the current user.",
+                "adminConsentDisplayName": "Teams can access app's web APIs",
+                "id": "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5",
+                "isEnabled": true,
+                "type": "User",
+                "userConsentDescription": "Enable Teams to call this app's web APIs with the same rights that you have",
+                "userConsentDisplayName": "Teams can access app's web APIs and make requests on your behalf",
+                "value": "access_as_user"
+            }
+        ],
+        "preAuthorizedApplications": [
+            {
+                "appId": "1fec8e78-bce4-4aaf-ab1b-5451cc387264",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "5e3ce6c0-2b1f-4285-8d4b-75ee78787346",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "00000002-0000-0ff1-ce00-000000000000",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "bc59ab01-8403-45c6-8796-ac3ef710b3e3",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "0ec893e0-5785-4de6-99da-4ed124e5296c",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "4765445b-32c6-49b0-83e6-1d93765276ca",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            },
+            {
+                "appId": "4345a7b9-9a63-4910-a426-35363201d503",
+                "delegatedPermissionIds": [
+                    "07d4f2a4-f6fc-47f9-983b-a08dd0d8d6b5"
+                ]
+            }
+        ]
+    },
+    "info": {},
+    "optionalClaims": {
+        "idToken": [],
+        "accessToken": [
+            {
+                "name": "idtyp",
+                "source": null,
+                "essential": false,
+                "additionalProperties": []
+            }
+        ],
+        "saml2Token": []
+    },
+    "publicClient": {
+        "redirectUris": []
+    },
+    "requiredResourceAccess": [
+        {
+            "resourceAppId": "00000003-0000-0000-c000-000000000000",
+            "resourceAccess": [
+                {
+                    "id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+                    "type": "Scope"
+                },
+                {
+                    "id": "b4e74841-8e56-480b-be8b-910348b18b4c",
+                    "type": "Scope"
+                },
+                {
+                    "id": "df021288-bdef-4463-88db-98f22de89214",
+                    "type": "Role"
+                },
+                {
+                    "id": "465a38f9-76ea-45b9-9f34-9e8b0d4b0b42",
+                    "type": "Scope"
+                },
+                {
+                    "id": "7ab1d382-f21e-4acd-a863-ba3e13f7da61",
+                    "type": "Role"
+                },
+                {
+                    "id": "1ec239c2-d7c9-4623-a91a-a9775856bb36",
+                    "type": "Scope"
+                },
+                {
+                    "id": "b340eb25-3456-403f-be2f-af7a0d370277",
+                    "type": "Scope"
+                }
+            ]
+        }
+    ],
+    "web": {
+        "redirectUris": [
+            "https://qbq37ppt-3978.use.devtunnels.ms/auth-end.html"
+        ],
+        "implicitGrantSettings": {}
+    },
+    "spa": {
+        "redirectUris": []
+    }
+}
