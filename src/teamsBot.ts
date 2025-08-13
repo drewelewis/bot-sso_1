@@ -11,6 +11,7 @@ import {
 } from "botbuilder";
 import { SSODialog } from "./ssoDialog";
 import { SSOCommandMap } from "./commands/SSOCommandMap";
+import { telemetryService } from "./telemetry";
 import e from "express";
 
 interface MessageHistoryItem {
@@ -21,7 +22,7 @@ interface MessageHistoryItem {
 export class TeamsBot extends TeamsActivityHandler {
   conversationState: ConversationState;
   userState: UserState;
-  dialog: SSODialog;
+  dialog: SSODialog | null;
   dialogState: StatePropertyAccessor;
   messageHistoryAccessor: StatePropertyAccessor<MessageHistoryItem[]>;
   private conversationReferences: { [key: string]: Partial<ConversationReference> } = {};
@@ -34,49 +35,136 @@ export class TeamsBot extends TeamsActivityHandler {
     // A bot requires a state storage system to persist the dialog and user state between messages.
     const memoryStorage = new MemoryStorage();
 
-
-
     // Create conversation and user state with in-memory storage provider.
     this.conversationState = new ConversationState(memoryStorage);
     this.userState = new UserState(memoryStorage);
-    this.dialog = new SSODialog(new MemoryStorage());
+    
+    // Only initialize SSO dialog if configuration is available
+    try {
+      this.dialog = new SSODialog(new MemoryStorage());
+    } catch (error) {
+      console.warn('SSO Dialog initialization failed - SSO features will be disabled:', error.message);
+      this.dialog = null;
+    }
+    
     this.dialogState = this.conversationState.createProperty("DialogState");
     //this.messageHistoryAccessor = this.conversationState.createProperty("MessageHistory");
     // get the conversation id and user id from the context
 
     this.onMessage(async (context, next) => {
       console.log("Running with Message Activity.");
-
-      // Store conversation reference for proactive messaging
-      this.addConversationReference(context.activity);
-
-      let txt = context.activity.text;
-      // remove the mention of this bot
-      const removedMentionText = TurnContext.removeRecipientMention(
-        context.activity
-      );
-      if (removedMentionText) {
-        // Remove the line break
-        txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
-      }
       
-      // Trigger command by IM text
-      if (SSOCommandMap.get(txt)) {
-        await this.dialog.run(context, this.dialogState);
+      const { userId, conversationId } = telemetryService.extractTelemetryFromContext(context);
+      const messageTimer = telemetryService.startOperation('MessageHandler').setContext(userId, conversationId);
+
+      try {
+        // Store conversation reference for proactive messaging
+        this.addConversationReference(context.activity);
+
+        let txt = context.activity.text;
+        // remove the mention of this bot
+        const removedMentionText = TurnContext.removeRecipientMention(
+          context.activity
+        );
+        if (removedMentionText) {
+          // Remove the line break
+          txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
+        }
+        
+        // Track message processing
+        telemetryService.trackCustomEvent('Message_Received', {
+          userId,
+          conversationId,
+          messageText: txt?.substring(0, 50), // First 50 chars for privacy
+          hasText: (!!txt).toString(),
+          messageLength: (txt?.length || 0).toString()
+        });
+        
+        if(txt === "/cls" || txt === "/new") {
+          // Clear the conversation history
+          telemetryService.trackCustomEvent('Conversation_Clear', { userId, conversationId });
+          
+          if (this.clearConversationHistory(context, context.activity.from.aadObjectId)) {
+            await context.sendActivity("New conversation started.  Prior history has been cleared.");
+            messageTimer.stop(true);
+            return;
+          }
+        }
+        // Trigger command by IM text
+        if (SSOCommandMap.get(txt)) {
+          if (this.dialog) {
+            telemetryService.trackCustomEvent('SSO_Command_Triggered', {
+              userId,
+              conversationId,
+              command: txt
+            });
+            
+            await this.dialog.run(context, this.dialogState);
+            messageTimer.stop(true);
+          } else {
+            telemetryService.trackCustomEvent('SSO_Command_Failed_No_Dialog', {
+              userId,
+              conversationId,
+              command: txt
+            });
+            
+            await context.sendActivity("SSO functionality is not available. Please check the bot configuration.");
+            messageTimer.stop(false, 'SSO Dialog not initialized');
+          }
+        }
+        else
+        {
+          await context.sendActivity({type: "typing"});
+          
+          // Get the user's Entra ID from the context and use it as the session id
+          // This is used to identify the user in the AI response
+          // Note: context.activity.from.id is the Teams user ID, not the Entra ID
+          // For Entra ID, we need to get it from the user's AAD object ID
+          const aiUserId = context.activity.from.aadObjectId || context.activity.from.id;
+          
+          telemetryService.trackCustomEvent('AI_Response_Requested', {
+            userId,
+            conversationId,
+            aiUserId,
+            hasMessage: (!!txt).toString()
+          });
+          
+          const aiResponseTimer = telemetryService.startOperation('AI_Response').setContext(userId, conversationId);
+          
+          try {
+            const aiResponse = await this.getAIResponse(context.activity.conversation.id, aiUserId, txt);
+            await context.sendActivity(aiResponse);
+            
+            telemetryService.trackCustomEvent('AI_Response_Sent', {
+              userId,
+              conversationId,
+              responseLength: aiResponse.length.toString()
+            });
+            
+            aiResponseTimer.stop(true);
+          } catch (aiError) {
+            telemetryService.trackException(aiError instanceof Error ? aiError : new Error(String(aiError)), {
+              userId,
+              conversationId,
+              operation: 'AI_Response'
+            });
+            
+            aiResponseTimer.stop(false, aiError instanceof Error ? aiError.message : String(aiError));
+            throw aiError;
+          }
+        }
+        
+        messageTimer.stop(true);
+      } catch (error) {
+        telemetryService.trackException(error instanceof Error ? error : new Error(String(error)), {
+          userId,
+          conversationId,
+          operation: 'MessageHandler'
+        });
+        
+        messageTimer.stop(false, error instanceof Error ? error.message : String(error));
+        throw error;
       }
-      else
-      {
-        await context.sendActivity({type: "typing"});
-        
-        // Get the user's Entra ID from the context and use it as the session id
-        // This is used to identify the user in the AI response
-        // Note: context.activity.from.id is the Teams user ID, not the Entra ID
-        // For Entra ID, we need to get it from the user's AAD object ID
-        const userId = context.activity.from.aadObjectId || context.activity.from.id;
-        const aiResponse = await this.getAIResponse(userId,txt);
-        
-        await context.sendActivity(aiResponse);
-       }
        
     });
 
@@ -100,9 +188,30 @@ export class TeamsBot extends TeamsActivityHandler {
 
   private addConversationReference(activity: Activity): void {
     const conversationReference = TurnContext.getConversationReference(activity);
-    this.conversationReferences[
-      conversationReference.user.id
-    ] = conversationReference;
+    
+    // Debug: Log the different user IDs available
+    console.log('Storing conversation reference:');
+    console.log('- conversationReference.user.id:', conversationReference.user?.id);
+    console.log('- activity.from.id:', activity.from?.id);
+    console.log('- activity.from.aadObjectId:', activity.from?.aadObjectId);
+    
+    // Store using the user.id from conversation reference
+    if (conversationReference.user?.id) {
+      this.conversationReferences[conversationReference.user.id] = conversationReference;
+    }
+    
+    // Also store using AAD Object ID if available (for easier lookup)
+    if (activity.from?.aadObjectId) {
+      this.conversationReferences[activity.from.aadObjectId] = conversationReference;
+    }
+    
+    // Track conversation reference addition
+    telemetryService.trackCustomEvent('Conversation_Reference_Added', {
+      userId: activity.from?.id || 'unknown',
+      aadObjectId: activity.from?.aadObjectId || 'unknown',
+      conversationId: activity.conversation?.id || 'unknown',
+      totalReferences: Object.keys(this.conversationReferences).length.toString()
+    });
   }
 
   public getConversationReferences(): { [key: string]: Partial<ConversationReference> } {
@@ -124,24 +233,45 @@ export class TeamsBot extends TeamsActivityHandler {
     console.log(
       "Running dialog with signin/verifystate from an Invoke Activity."
     );
-    await this.dialog.run(context, this.dialogState);
+    if (this.dialog) {
+      await this.dialog.run(context, this.dialogState);
+    } else {
+      console.warn("SSO Dialog not available for signin verification");
+    }
   }
 
   async handleTeamsSigninTokenExchange(
     context: TurnContext,
     query: SigninStateVerificationQuery
   ) {
-    await this.dialog.run(context, this.dialogState);
+    if (this.dialog) {
+      await this.dialog.run(context, this.dialogState);
+    } else {
+      console.warn("SSO Dialog not available for token exchange");
+    }
   }
 
   async onSignInInvoke(context: TurnContext) {
-    await this.dialog.run(context, this.dialogState);
+    if (this.dialog) {
+      await this.dialog.run(context, this.dialogState);
+    } else {
+      console.warn("SSO Dialog not available for signin invoke");
+    }
   }
 
   // outputs the AI response in the following format:
-  async getAIResponse(session_id: string, message: string): Promise<string> {
+  async getAIResponse(chat_id: string, session_id: string, message: string): Promise<string> {
+    const operationTimer = telemetryService.startOperation('External_AI_API');
+    
     // Get agent url from environment variable
     const url = process.env.AGENT_URL || "http://localhost:8989/agent_chat";
+
+    telemetryService.trackCustomEvent('External_AI_Request', {
+      sessionId: session_id,
+      chatId: chat_id,
+      url,
+      messageLength: message.length.toString()
+    });
 
     // We can use the `Headers` constructor to create headers
     // and assign it as the type of the `headers` variable
@@ -163,28 +293,136 @@ export class TeamsBot extends TeamsActivityHandler {
       const response = await fetch(request);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} calling URL: ${url}`);
+        const errorMessage = `HTTP error! status: ${response.status} calling URL: ${url}`;
+        telemetryService.trackCustomEvent('External_AI_Error', {
+          sessionId: session_id,
+          chatId: chat_id,
+          url,
+          statusCode: response.status.toString(),
+          error: errorMessage
+        });
+        
+        operationTimer.stop(false, errorMessage);
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
       
       // Extract the response text from the API response
       // This depends on your API's response format
+      let responseText: string;
       if (data && data.response) {
-        return data.response;
+        responseText = data.response;
       } else if (data && data.message) {
-        return data.message;
+        responseText = data.message;
       } else if (typeof data === 'string') {
-        return data;
+        responseText = data;
       } else {
-        return JSON.stringify(data);
+        responseText = JSON.stringify(data);
       }
+      
+      telemetryService.trackCustomEvent('External_AI_Success', {
+        sessionId: session_id,
+        chatId: chat_id,
+        url,
+        responseLength: responseText.length.toString()
+      });
+      
+      operationTimer.stop(true);
+      return responseText;
     } catch (error) {
       console.error('Fetch error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      telemetryService.trackException(error instanceof Error ? error : new Error(String(error)), {
+        sessionId: session_id,
+        chatId: chat_id,
+        url,
+        operation: 'External_AI_API'
+      });
+      
+      operationTimer.stop(false, errorMessage);
+      
       // Return a fallback message instead of the error object
-      return `Sorry, I encountered an error while processing your request: ${error.message}`;
+      return `Sorry, I encountered an error while processing your request: ${errorMessage}`;
     }
   }
+
+  async clearConversationHistory(context: TurnContext, session_id: string): Promise<boolean> {
+    const operationTimer = telemetryService.startOperation('Clear_Conversation_History');
+    const { userId, conversationId } = telemetryService.extractTelemetryFromContext(context);
+    operationTimer.setContext(userId, conversationId);
+    
+    telemetryService.trackCustomEvent('Clear_History_Started', {
+      sessionId: session_id,
+      userId,
+      conversationId,
+      previousReferences: Object.keys(this.conversationReferences).length.toString()
+    });
+    
+    // Clear the conversation references
+    this.conversationReferences = {};
+    // Optionally, clear the message history accessor if implemented
+    this.messageHistoryAccessor.set(context, []);
+    const clearHistoryUrl = process.env.CLEAR_HISTORY_URL || "http://localhost:8989/clear_history";
+    
+    try {
+      await context.sendActivity("Clearing conversation history...");
+      await context.sendActivity(clearHistoryUrl);
+      const body = JSON.stringify({ session_id: session_id });
+      await context.sendActivity(body);
+      
+      const response = await fetch(clearHistoryUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: body
+      });
+
+      if (response.ok) {
+        telemetryService.trackCustomEvent('Clear_History_Success', {
+          sessionId: session_id,
+          userId,
+          conversationId,
+          url: clearHistoryUrl
+        });
+        
+        operationTimer.stop(true);
+        return true;
+      } else {
+        const errorMessage = `Clear history failed with status: ${response.status}`;
+        telemetryService.trackCustomEvent('Clear_History_Failed', {
+          sessionId: session_id,
+          userId,
+          conversationId,
+          url: clearHistoryUrl,
+          statusCode: response.status.toString(),
+          error: errorMessage
+        });
+        
+        operationTimer.stop(false, errorMessage);
+        return false;
+      }
+
+    } catch (error) {
+      console.error('Fetch error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      telemetryService.trackException(error instanceof Error ? error : new Error(String(error)), {
+        sessionId: session_id,
+        userId,
+        conversationId,
+        operation: 'Clear_Conversation_History'
+      });
+      
+      await context.sendActivity(errorMessage);
+      operationTimer.stop(false, errorMessage);
+    }
+
+    return false;
+  }
+
 
   
 

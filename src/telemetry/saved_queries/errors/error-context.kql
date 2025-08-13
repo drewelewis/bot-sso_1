@@ -1,0 +1,14 @@
+// Error Context Analysis
+// Errors with user context
+exceptions
+| join kind=leftouter (
+    traces
+    | where timestamp > ago(1d)
+    | extend UserId = tostring(customDimensions["bot.user_id"])
+    | where isnotempty(UserId)
+    | summarize by UserId, bin(timestamp, 1m)
+) on $left.timestamp == $right.timestamp
+| project timestamp, type, outerMessage, UserId
+| where isnotempty(UserId)
+| summarize ErrorCount = count() by UserId, type
+| top 10 by ErrorCount

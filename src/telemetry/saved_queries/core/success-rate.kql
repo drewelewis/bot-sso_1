@@ -1,0 +1,11 @@
+// Success Rate by Hour
+// Bot message processing success rate
+traces
+| where name == "bot_message_processing"
+| extend Success = tobool(customDimensions["bot.success"])
+| summarize 
+    Total = count(),
+    Successful = countif(Success == true),
+    SuccessRate = todouble(countif(Success == true)) / count() * 100
+    by bin(timestamp, 1h)
+| render timechart

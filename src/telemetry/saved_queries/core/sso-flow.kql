@@ -1,0 +1,6 @@
+// SSO Authentication Flow
+// Complete SSO event tracking
+traces
+| where name has "SSO"
+| summarize Count = count() by name, bin(timestamp, 1h)
+| render timechart

@@ -1,0 +1,3 @@
+// Check What Data You Have
+// Basic data exploration
+traces | take 10

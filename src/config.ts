@@ -8,6 +8,12 @@ const config = {
   clientId: process.env.AAD_APP_CLIENT_ID,
   tenantId: process.env.AAD_APP_TENANT_ID,
   clientSecret: process.env.AAD_APP_CLIENT_SECRET,
+  
+  // OpenTelemetry / Azure Monitor Configuration
+  applicationInsightsConnectionString: process.env.APPLICATIONINSIGHTS_CONNECTION_STRING,
+  telemetryServiceName: process.env.TELEMETRY_SERVICE_NAME || 'ai-calendar-assistant',
+  telemetryServiceVersion: process.env.TELEMETRY_SERVICE_VERSION || '1.0.0',
+  environment: process.env.ENVIRONMENT || 'development',
 };
 
 export default config;

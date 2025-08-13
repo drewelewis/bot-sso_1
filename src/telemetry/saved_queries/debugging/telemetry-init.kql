@@ -1,0 +1,6 @@
+// Telemetry Service Initialization
+// Check telemetry service initialization
+traces
+| where message has "Telemetry initialized" or message has "OpenTelemetry"
+| project timestamp, message, customDimensions
+| order by timestamp desc

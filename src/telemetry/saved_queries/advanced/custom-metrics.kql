@@ -1,0 +1,6 @@
+// Custom Metrics Analysis
+// Your OpenTelemetry custom metrics
+customMetrics
+| where name startswith "bot_"
+| summarize Count = count(), AvgValue = avg(value), MaxValue = max(value) by name
+| order by Count desc

@@ -1,0 +1,6 @@
+// Proactive Messaging Analytics
+// Proactive message flow
+traces
+| where name has "ProactiveMessage"
+| summarize Count = count() by name, bin(timestamp, 1h)
+| render timechart

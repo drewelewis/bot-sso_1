@@ -1,0 +1,13 @@
+// Conversation History Clearing Patterns
+// How often users clear their history
+traces
+| where name has "Clear_History"
+| extend 
+    UserId = tostring(customDimensions["userId"]),
+    Success = name == "Clear_History_Success"
+| summarize 
+    TotalAttempts = count(),
+    SuccessfulClears = countif(Success),
+    UniqueUsers = dcount(UserId)
+    by bin(timestamp, 1d)
+| render timechart

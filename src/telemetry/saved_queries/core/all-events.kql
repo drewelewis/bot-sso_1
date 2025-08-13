@@ -1,0 +1,11 @@
+// All Bot Events Overview
+// Overview of all bot events
+traces
+| where name in (
+    "Message_Received", "AI_Response_Requested", "AI_Response_Sent",
+    "SSO_Command_Triggered", "SSO_Dialog_Started", "SSO_Dialog_Completed",
+    "External_AI_Request", "External_AI_Success", "External_AI_Error",
+    "Clear_History_Started", "Clear_History_Success", "ProactiveMessage_Sent"
+)
+| summarize Count = count() by name, bin(timestamp, 1h)
+| render timechart

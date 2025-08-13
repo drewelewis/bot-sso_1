@@ -1,0 +1,15 @@
+// Operation Performance Analysis
+// Performance analysis for all operations
+traces
+| where isnotempty(customDimensions["operation.duration_ms"])
+| extend 
+    OperationName = tostring(customDimensions["operation.name"]),
+    Duration = todouble(customDimensions["operation.duration_ms"]),
+    Success = tobool(customDimensions["operation.success"])
+| summarize 
+    Count = count(),
+    AvgDuration = avg(Duration),
+    P95Duration = percentile(Duration, 95),
+    SuccessRate = todouble(countif(Success == true)) / count() * 100
+    by OperationName
+| order by AvgDuration desc

@@ -1,0 +1,6 @@
+// Application Lifecycle Monitoring
+// App starts and shutdowns
+traces
+| where name in ("Application_Started", "Application_Shutdown")
+| summarize Count = count() by name, bin(timestamp, 1d)
+| render timechart

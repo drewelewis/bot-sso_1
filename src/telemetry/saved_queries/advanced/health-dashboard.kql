@@ -1,0 +1,22 @@
+// Service Health Dashboard (Advanced)
+// Comprehensive health metrics
+let timeWindow = 1h;
+let messages = traces | where timestamp > ago(timeWindow) and name == "bot_message_processing" | count;
+let errors = exceptions | where timestamp > ago(timeWindow) | count;
+let avgResponseTime = traces 
+    | where timestamp > ago(timeWindow) and isnotnull(customDimensions["bot.response_time_ms"])
+    | extend ResponseTime = todouble(customDimensions["bot.response_time_ms"])
+    | summarize avg(ResponseTime);
+let aiRequests = traces | where timestamp > ago(timeWindow) and name == "External_AI_Request" | count;
+let aiErrors = traces | where timestamp > ago(timeWindow) and name == "External_AI_Error" | count;
+let ssoAttempts = traces | where timestamp > ago(timeWindow) and name == "SSO_Dialog_Started" | count;
+let ssoSuccess = traces | where timestamp > ago(timeWindow) and name == "SSO_Dialog_Completed" | count;
+print 
+    Messages = toscalar(messages),
+    Errors = toscalar(errors),
+    AvgResponseTime_ms = toscalar(avgResponseTime),
+    AIRequests = toscalar(aiRequests),
+    AIErrors = toscalar(aiErrors),
+    AISuccessRate = round(100.0 * (toscalar(aiRequests) - toscalar(aiErrors)) / toscalar(aiRequests), 2),
+    SSOAttempts = toscalar(ssoAttempts),
+    SSOSuccessRate = round(100.0 * toscalar(ssoSuccess) / toscalar(ssoAttempts), 2)

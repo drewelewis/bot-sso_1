@@ -1,0 +1,12 @@
+// AI Response Time Distribution
+// AI response performance breakdown
+traces
+| where name == "External_AI_API"
+| extend Duration = todouble(customDimensions["operation.duration_ms"])
+| where isnotnull(Duration)
+| summarize 
+    ["< 1sec"] = countif(Duration < 1000),
+    ["1-3sec"] = countif(Duration >= 1000 and Duration < 3000),
+    ["3-5sec"] = countif(Duration >= 3000 and Duration < 5000),
+    ["5-10sec"] = countif(Duration >= 5000 and Duration < 10000),
+    ["> 10sec"] = countif(Duration >= 10000)

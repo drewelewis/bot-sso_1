@@ -1,0 +1,13 @@
+// Response Time Analysis
+// Bot response time percentiles
+traces
+| where name == "bot_message_processing"
+| extend ResponseTime = todouble(customDimensions["bot.response_time_ms"])
+| where isnotnull(ResponseTime)
+| summarize 
+    AvgResponseTime = avg(ResponseTime),
+    P50ResponseTime = percentile(ResponseTime, 50),
+    P95ResponseTime = percentile(ResponseTime, 95),
+    P99ResponseTime = percentile(ResponseTime, 99)
+    by bin(timestamp, 1h)
+| render timechart

@@ -1,0 +1,7 @@
+// Peak Usage Hours
+// Bot usage by hour of day (UTC)
+traces
+| where name == "Message_Received"
+| extend HourOfDay = hourofday(timestamp)
+| summarize MessageCount = count() by HourOfDay
+| render columnchart title="Bot Usage by Hour (UTC)"

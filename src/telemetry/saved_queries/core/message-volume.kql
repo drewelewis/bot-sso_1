@@ -1,0 +1,6 @@
+// Message Volume Over Time
+// Shows bot message volume by hour
+traces
+| where name == "bot_message_processing"
+| summarize MessageCount = count() by bin(timestamp, 1h)
+| render timechart

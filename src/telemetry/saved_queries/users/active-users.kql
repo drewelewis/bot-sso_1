@@ -1,0 +1,8 @@
+// Active Users
+// Daily active users
+traces
+| where name == "bot_message_processing"
+| extend UserId = tostring(customDimensions["bot.user_id"])
+| where isnotempty(UserId) and UserId != "unknown"
+| summarize UniqueUsers = dcount(UserId) by bin(timestamp, 1d)
+| render timechart

@@ -1,0 +1,7 @@
+// Recent Bot Activity
+// Look for recent bot activity (last hour)
+traces
+| where timestamp > ago(1h) and (name has "bot" or name has "Message" or name has "SSO" or name has "AI")
+| project timestamp, name, customDimensions
+| order by timestamp desc
+| take 20

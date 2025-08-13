@@ -77,6 +77,88 @@ This is a sample chatbot application demonstrating Single Sign-on using `botbuil
 - From Microsoft 365 Agents Toolkit CLI:
   1. Run command: `atk preview --env dev`.
 
+## Project Structure
+
+```
+src/
+├── commands/          # Bot command handlers
+├── telemetry/         # Telemetry and monitoring
+│   ├── telemetryService.ts     # OpenTelemetry implementation
+│   ├── saved_queries/          # Individual KQL files by category
+│   │   ├── core/              # Essential bot metrics
+│   │   ├── users/             # User analytics
+│   │   ├── performance/       # Performance monitoring
+│   │   ├── errors/            # Error analysis
+│   │   ├── advanced/          # Business intelligence
+│   │   ├── debugging/         # Data exploration
+│   │   ├── publish-queries-to-insights.*  # Deployment scripts
+│   │   └── README.md          # Query documentation
+│   ├── index.ts               # Module exports
+│   └── README.md              # Telemetry documentation
+├── authConfig.ts      # Authentication configuration
+├── config.ts          # Application configuration
+├── index.ts           # Main application entry point
+├── ssoDialog.ts       # SSO authentication dialog
+└── teamsBot.ts        # Main bot implementation
+```
+
+## 📊 Monitoring and Telemetry
+
+This bot includes comprehensive telemetry using **OpenTelemetry** and **Azure Application Insights** for production-ready monitoring.
+
+### Features
+- ✅ **Message Tracking**: Track all bot interactions and user messages
+- ✅ **Performance Monitoring**: Response times, throughput, and bottlenecks
+- ✅ **Error Analysis**: Detailed error tracking with context
+- ✅ **User Analytics**: Active users, engagement patterns, and retention
+- ✅ **SSO Flow Monitoring**: Authentication success/failure tracking
+- ✅ **Custom Metrics**: Business-specific metrics and KPIs
+
+### Configuration
+Telemetry is configured via environment variables in `env/.env.dev`:
+
+```bash
+# Application Insights connection string (automatically configured)
+APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=...;IngestionEndpoint=...
+
+# Service identification
+TELEMETRY_SERVICE_NAME=ai-calendar-assistant
+TELEMETRY_SERVICE_VERSION=1.0.0
+ENVIRONMENT=development
+```
+
+### Quick Start - Deploy Monitoring Queries
+Deploy 30+ pre-built KQL queries to Application Insights:
+
+```powershell
+# Navigate to saved queries folder
+cd src\telemetry\saved_queries
+
+# Run automated deployment (uses your dev environment settings)
+.\publish-queries-to-insights.bat
+```
+
+This will automatically:
+- Load your Azure settings from `env\.env.dev`
+- Find your Application Insights resource
+- Deploy all monitoring queries with "TeamsBotTelemetry" category
+- Provide direct portal links to access your dashboards
+
+### Available Query Categories
+- **Core Metrics** (8 queries): Message volume, response times, success rates, health dashboard
+- **User Analytics** (5 queries): Active users, engagement patterns, user journeys
+- **Performance** (5 queries): Response time analysis, bottlenecks, throughput
+- **Error Analysis** (5 queries): Error categorization, failure tracking, recovery patterns
+- **Advanced Analytics** (4 queries): Correlation analysis, anomaly detection, trends
+- **Debugging** (6+ queries): Data exploration, validation, troubleshooting
+
+### Accessing Your Data
+After deployment, access your monitoring dashboards at:
+- **Azure Portal**: Application Insights > Logs > Saved Queries > "TeamsBotTelemetry"
+- **Direct Link**: Provided by the deployment script
+
+For detailed documentation, see [`src/telemetry/README.md`](src/telemetry/README.md)
+
 ## Version History
 
 | Date         | Author     | Comments                               |

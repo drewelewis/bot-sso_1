@@ -1,0 +1,14 @@
+// User Conversation Patterns
+// Messages per user session analysis
+traces
+| where name == "bot_message_processing"
+| extend 
+    UserId = tostring(customDimensions["bot.user_id"]),
+    ConversationId = tostring(customDimensions["bot.conversation_id"])
+| where isnotempty(UserId) and UserId != "unknown"
+| summarize MessageCount = count() by UserId, ConversationId
+| summarize 
+    SingleMessage = countif(MessageCount == 1),
+    ShortConvo = countif(MessageCount >= 2 and MessageCount <= 5),
+    MediumConvo = countif(MessageCount >= 6 and MessageCount <= 15),
+    LongConvo = countif(MessageCount > 15)

@@ -1,0 +1,11 @@
+// Retry Pattern Analysis
+// Look for retry patterns in AI requests
+traces
+| where name == "External_AI_Request"
+| extend 
+    UserId = tostring(customDimensions["userId"]),
+    ConversationId = tostring(customDimensions["conversationId"])
+| summarize RequestCount = count() by UserId, ConversationId, bin(timestamp, 1m)
+| where RequestCount > 1
+| summarize RetryUsers = dcount(UserId), TotalRetries = sum(RequestCount - 1) by bin(timestamp, 1h)
+| render timechart title="AI Request Retries"

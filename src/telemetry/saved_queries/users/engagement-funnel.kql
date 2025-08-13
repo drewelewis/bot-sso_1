@@ -1,0 +1,23 @@
+// User Engagement Funnel
+// User journey through bot features
+let users = traces
+| where timestamp > ago(1d) and name == "Message_Received"
+| extend UserId = tostring(customDimensions["userId"])
+| where isnotempty(UserId)
+| summarize by UserId;
+let ssoUsers = traces
+| where timestamp > ago(1d) and name == "SSO_Command_Triggered"
+| extend UserId = tostring(customDimensions["userId"])
+| where isnotempty(UserId)
+| summarize by UserId;
+let aiUsers = traces
+| where timestamp > ago(1d) and name == "AI_Response_Requested"
+| extend UserId = tostring(customDimensions["userId"])
+| where isnotempty(UserId)
+| summarize by UserId;
+print 
+    TotalUsers = toscalar(users | count),
+    UsersWhoTriedSSO = toscalar(ssoUsers | count),
+    UsersWhoUsedAI = toscalar(aiUsers | count),
+    SSOAdoptionRate = round(100.0 * toscalar(ssoUsers | count) / toscalar(users | count), 2),
+    AIAdoptionRate = round(100.0 * toscalar(aiUsers | count) / toscalar(users | count), 2)

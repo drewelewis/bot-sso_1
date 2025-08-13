@@ -1,0 +1,6 @@
+// SSO-Specific Issues
+// SSO authentication problems
+traces
+| where name has "SSO" and (name has "Failed" or name has "Missing" or name has "Error")
+| summarize Count = count() by name, bin(timestamp, 1h)
+| render timechart

@@ -1,0 +1,5 @@
+// All Exceptions
+// Exception tracking
+exceptions
+| summarize Count = count() by type, bin(timestamp, 1h)
+| render timechart

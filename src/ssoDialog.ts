@@ -18,6 +18,7 @@ import { TeamsBotSsoPrompt } from "@microsoft/teamsfx";
 import oboAuthConfig from "./authConfig";
 import config from "./config";
 import { SSOCommandMap } from "./commands/SSOCommandMap";
+import { telemetryService } from "./telemetry";
 
 const DIALOG_NAME = "SSODialog";
 const MAIN_WATERFALL_DIALOG = "MainWaterfallDialog";
@@ -65,42 +66,148 @@ export class SSODialog extends ComponentDialog {
    * @param {*} dialogContext
    */
   async run(context: TurnContext, dialogState: StatePropertyAccessor) {
-    const dialogSet = new DialogSet(dialogState);
-    dialogSet.add(this);
+    const { userId, conversationId } = telemetryService.extractTelemetryFromContext(context);
+    const operationTimer = telemetryService.startOperation('SSO_Dialog_Run').setContext(userId, conversationId);
+    
+    telemetryService.trackCustomEvent('SSO_Dialog_Started', {
+      userId,
+      conversationId,
+      activityType: context.activity.type
+    });
+    
+    try {
+      const dialogSet = new DialogSet(dialogState);
+      dialogSet.add(this);
 
-    const dialogContext = await dialogSet.createContext(context);
-    let dialogTurnResult = await dialogContext.continueDialog();
-    if (dialogTurnResult && dialogTurnResult.status === DialogTurnStatus.empty) {
-      dialogTurnResult = await dialogContext.beginDialog(this.id);
+      const dialogContext = await dialogSet.createContext(context);
+      let dialogTurnResult = await dialogContext.continueDialog();
+      if (dialogTurnResult && dialogTurnResult.status === DialogTurnStatus.empty) {
+        dialogTurnResult = await dialogContext.beginDialog(this.id);
+      }
+      
+      telemetryService.trackCustomEvent('SSO_Dialog_Completed', {
+        userId,
+        conversationId,
+        dialogStatus: dialogTurnResult?.status || 'unknown'
+      });
+      
+      operationTimer.stop(true);
+    } catch (error) {
+      telemetryService.trackException(error instanceof Error ? error : new Error(String(error)), {
+        userId,
+        conversationId,
+        operation: 'SSO_Dialog_Run'
+      });
+      
+      operationTimer.stop(false, error instanceof Error ? error.message : String(error));
+      throw error;
     }
   }
 
   async ssoStep(stepContext: any) {
     const turnContext = stepContext.context as TurnContext;
+    const { userId, conversationId } = telemetryService.extractTelemetryFromContext(turnContext);
+    
     stepContext.options.commandMessage = this.getActivityText(turnContext.activity);
+    
+    telemetryService.trackCustomEvent('SSO_Step_Started', {
+      userId,
+      conversationId,
+      command: stepContext.options.commandMessage
+    });
+    
     return await stepContext.beginDialog(TEAMS_SSO_PROMPT_ID);
   }
 
   async dedupStep(stepContext: any) {
+    const turnContext = stepContext.context as TurnContext;
+    const { userId, conversationId } = telemetryService.extractTelemetryFromContext(turnContext);
+    
     const tokenResponse = stepContext.result;
     // Only dedup after ssoStep to make sure that all Teams client would receive the login request
     if (tokenResponse && (await this.shouldDedup(stepContext.context))) {
+      telemetryService.trackCustomEvent('SSO_Token_Deduplicated', {
+        userId,
+        conversationId,
+        tokenId: tokenResponse.ssoToken ? 'present' : 'missing'
+      });
+      
       return Dialog.EndOfTurn;
     }
+    
+    telemetryService.trackCustomEvent('SSO_Token_Processed', {
+      userId,
+      conversationId,
+      hasToken: (!!tokenResponse).toString()
+    });
+    
     return await stepContext.next(tokenResponse);
   }
 
   async executeOperationWithSSO(stepContext: any) {
+    const turnContext = stepContext.context as TurnContext;
+    const { userId, conversationId } = telemetryService.extractTelemetryFromContext(turnContext);
+    const operationTimer = telemetryService.startOperation('SSO_Execute_Operation').setContext(userId, conversationId);
+    
     const tokenResponse = stepContext.result;
     if (!tokenResponse || !tokenResponse.ssoToken) {
-      throw new Error("There is an issue while trying to sign you in and run your command. Please try again.");
+      const errorMessage = "There is an issue while trying to sign you in and run your command. Please try again.";
+      
+      telemetryService.trackCustomEvent('SSO_Token_Missing', {
+        userId,
+        conversationId,
+        hasTokenResponse: (!!tokenResponse).toString(),
+        hasSsoToken: (!!tokenResponse?.ssoToken).toString()
+      });
+      
+      operationTimer.stop(false, errorMessage);
+      throw new Error(errorMessage);
     }
+    
     // Once got ssoToken, run operation that depends on ssoToken
     const SSOCommand = SSOCommandMap.get(stepContext.options.commandMessage);
     if (!SSOCommand) {
-      throw new Error("Can not get sso operation. Please try again.");
+      const errorMessage = "Can not get sso operation. Please try again.";
+      
+      telemetryService.trackCustomEvent('SSO_Command_Not_Found', {
+        userId,
+        conversationId,
+        command: stepContext.options.commandMessage
+      });
+      
+      operationTimer.stop(false, errorMessage);
+      throw new Error(errorMessage);
     }
-    await SSOCommand.operationWithSSOToken(stepContext.context, tokenResponse.ssoToken);
+    
+    try {
+      telemetryService.trackCustomEvent('SSO_Operation_Started', {
+        userId,
+        conversationId,
+        command: stepContext.options.commandMessage,
+        commandType: SSOCommand.constructor.name
+      });
+      
+      await SSOCommand.operationWithSSOToken(stepContext.context, tokenResponse.ssoToken);
+      
+      telemetryService.trackCustomEvent('SSO_Operation_Completed', {
+        userId,
+        conversationId,
+        command: stepContext.options.commandMessage
+      });
+      
+      operationTimer.stop(true);
+    } catch (error) {
+      telemetryService.trackException(error instanceof Error ? error : new Error(String(error)), {
+        userId,
+        conversationId,
+        operation: 'SSO_Execute_Operation',
+        command: stepContext.options.commandMessage
+      });
+      
+      operationTimer.stop(false, error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+    
     return await stepContext.endDialog();
   }
 

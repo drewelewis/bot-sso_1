@@ -1,0 +1,7 @@
+// Message Type Analysis
+// What types of messages are users sending
+traces
+| where name == "bot_message_processing"
+| extend MessageType = tostring(customDimensions["bot.message_type"])
+| summarize Count = count() by MessageType
+| render piechart title="Message Types"

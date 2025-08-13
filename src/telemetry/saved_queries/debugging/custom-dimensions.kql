@@ -1,0 +1,5 @@
+// Check Custom Dimensions Structure
+// Explore your custom dimensions
+traces
+| take 5
+| project name, customDimensions

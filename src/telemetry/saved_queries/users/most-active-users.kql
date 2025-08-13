@@ -1,0 +1,8 @@
+// Most Active Users
+// Users with highest message count
+traces
+| where name == "bot_message_processing"
+| extend UserId = tostring(customDimensions["bot.user_id"])
+| where isnotempty(UserId) and UserId != "unknown"
+| summarize MessageCount = count() by UserId
+| top 10 by MessageCount

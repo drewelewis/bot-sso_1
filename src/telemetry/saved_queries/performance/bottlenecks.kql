@@ -1,0 +1,8 @@
+// Performance Bottlenecks
+// Operations taking longer than expected
+traces
+| where customDimensions.eventType == "MessageResponseTime"
+| extend responseTime = todouble(customDimensions.responseTime)
+| where responseTime > 1000  // Messages taking more than 1 second
+| summarize SlowMessages = count() by bin(timestamp, 1h)
+| render timechart

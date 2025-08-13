@@ -1,0 +1,5 @@
+// Find Your Span Names
+// See all span names in your data
+traces
+| summarize count() by name
+| order by count_ desc

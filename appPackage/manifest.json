@@ -1,7 +1,7 @@
 {
     "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
-    "manifestVersion": "1.18",
-    "version": "1.0.31",
+    "manifestVersion": "1.17",
+    "version": "1.0.45",
     "id": "${{TEAMS_APP_ID}}",
     "developer": {
         "name": "Teams App, Inc.",
@@ -14,12 +14,12 @@
         "outline": "outline.png"
     },
     "name": {
-        "short": "calendar-scheduling-sso-bot${{APP_NAME_SUFFIX}}",
-        "full": "full name for sso-bot"
+        "short": "prd-ai-scheduling-agent",
+        "full": "AI Scheduling Agent"
     },
     "description": {
-        "short": "Scheduling Assitant",
-        "full": "This bot will be used to schedule meetings using Single Sign On feature for Graph Access"
+        "short": "AI Scheduling Agent",
+        "full": "This agent will be used to schedule meetings using Graph, Azure Maps, and OpenAI features"
     },
     "accentColor": "#FFFFFF",
     "bots": [
@@ -42,7 +42,13 @@
                         {
                             "title": "show",
                             "description": "Show user profile using Single Sign On feature"
+                        },
+                        {
+                            "title": "new",
+                            "description": "Start a new session and clear previous data"
                         }
+                        
+
                     ]
                 }
             ]

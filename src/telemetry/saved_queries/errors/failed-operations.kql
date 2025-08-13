@@ -1,0 +1,7 @@
+// Failed Operations
+// Operations that failed
+traces
+| where customDimensions["operation.success"] == "false"
+| extend OperationName = tostring(customDimensions["operation.name"])
+| summarize ErrorCount = count() by OperationName, bin(timestamp, 1h)
+| render timechart

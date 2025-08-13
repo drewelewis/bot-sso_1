@@ -1,0 +1,5 @@
+// All Available Tables
+// See what tables have data
+search "*"
+| summarize count() by $table
+| order by count_ desc
