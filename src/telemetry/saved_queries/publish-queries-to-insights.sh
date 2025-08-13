@@ -81,6 +81,7 @@ for category in "${categories[@]}"; do
                 query_name=$(basename "$query_file" .kql)
                 query_content=$(cat "$query_file")
                 full_query_name="$category-$query_name"
+                category_name="TeamsBotTelemetry-$(echo "$category" | sed 's/.*/\u&/')"
                 
                 echo -n "  💾 Publishing: $full_query_name"
                 
@@ -91,7 +92,7 @@ for category in "${categories[@]}"; do
                     --name "$full_query_name" \
                     --description "Auto-saved KQL query from telemetry/$category/$(basename "$query_file") - $(date '+%Y-%m-%d %H:%M')" \
                     --query-text "$query_content" \
-                    --category "TeamsBotTelemetry" \
+                    --category "$category_name" \
                     --output none 2>/dev/null; then
                     echo " ✅"
                     ((successful_queries++))
@@ -110,7 +111,7 @@ echo "🎉 Completed! Published $successful_queries out of $total_queries querie
 echo "📍 Resource: $WORKSPACE_NAME in $RESOURCE_GROUP_NAME"
 echo "🌐 You can access them in the Azure portal:"
 echo "   https://portal.azure.com/#@/resource/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Insights/components/$WORKSPACE_NAME/logs"
-echo "   Navigate to: Logs > Saved Queries > TeamsBotTelemetry category"
+echo "   Navigate to: Logs > Saved Queries > TeamsBotTelemetry-* categories"
 
 if [ $successful_queries -lt $total_queries ]; then
     echo ""

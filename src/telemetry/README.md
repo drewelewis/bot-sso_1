@@ -39,7 +39,13 @@ The automation scripts now automatically use your `env\.env.dev` settings:
 The script will:
 - ✅ Load your Azure settings from `env\.env.dev`
 - ✅ Find your Application Insights resource automatically  
-- ✅ Deploy all 30+ KQL queries with "TeamsBotTelemetry" category
+- ✅ Deploy all 30+ KQL queries organized in separate categories:
+  - **TeamsBotTelemetry-Core** - Essential metrics
+  - **TeamsBotTelemetry-Users** - User analytics
+  - **TeamsBotTelemetry-Performance** - Performance monitoring
+  - **TeamsBotTelemetry-Errors** - Error analysis
+  - **TeamsBotTelemetry-Advanced** - Business intelligence
+  - **TeamsBotTelemetry-Debugging** - Data exploration
 - ✅ Provide direct portal links to access your published queries
 
 ## 🚀 Usage

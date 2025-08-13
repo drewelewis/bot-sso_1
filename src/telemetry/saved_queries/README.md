@@ -76,7 +76,13 @@ All scripts will:
 - ✅ Load configuration from your `env\.env.dev` file
 - ✅ Parse your Application Insights connection string  
 - ✅ Automatically find your Azure resources
-- ✅ Publish all 30+ queries to Application Insights with category "TeamsBotTelemetry"
+- ✅ Publish all 30+ queries to Application Insights with separate categories:
+  - **TeamsBotTelemetry-Core** - Essential bot metrics
+  - **TeamsBotTelemetry-Users** - User analytics  
+  - **TeamsBotTelemetry-Performance** - Performance monitoring
+  - **TeamsBotTelemetry-Errors** - Error analysis
+  - **TeamsBotTelemetry-Advanced** - Business intelligence
+  - **TeamsBotTelemetry-Debugging** - Data exploration
 - ✅ Provide direct Azure portal links to access the published queries
 
 ### Getting Started

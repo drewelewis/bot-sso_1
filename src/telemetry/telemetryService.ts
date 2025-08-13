@@ -1,7 +1,7 @@
 import { useAzureMonitor } from '@azure/monitor-opentelemetry';
 import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import { TurnContext } from 'botbuilder';
-import config from './config';
+import config from '../config';
 
 export interface MessageTelemetry {
   userId: string;

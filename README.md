@@ -141,7 +141,13 @@ cd src\telemetry\saved_queries
 This will automatically:
 - Load your Azure settings from `env\.env.dev`
 - Find your Application Insights resource
-- Deploy all monitoring queries with "TeamsBotTelemetry" category
+- Deploy all monitoring queries organized in separate categories:
+  - **TeamsBotTelemetry-Core** - Essential bot metrics
+  - **TeamsBotTelemetry-Users** - User analytics
+  - **TeamsBotTelemetry-Performance** - Performance monitoring
+  - **TeamsBotTelemetry-Errors** - Error analysis
+  - **TeamsBotTelemetry-Advanced** - Business intelligence
+  - **TeamsBotTelemetry-Debugging** - Data exploration
 - Provide direct portal links to access your dashboards
 
 ### Available Query Categories
@@ -154,7 +160,7 @@ This will automatically:
 
 ### Accessing Your Data
 After deployment, access your monitoring dashboards at:
-- **Azure Portal**: Application Insights > Logs > Saved Queries > "TeamsBotTelemetry"
+- **Azure Portal**: Application Insights > Logs > Saved Queries > "TeamsBotTelemetry-*" categories
 - **Direct Link**: Provided by the deployment script
 
 For detailed documentation, see [`src/telemetry/README.md`](src/telemetry/README.md)

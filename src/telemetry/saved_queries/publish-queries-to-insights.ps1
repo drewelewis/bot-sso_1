@@ -101,6 +101,7 @@ foreach ($category in $categories) {
             $queryName = [System.IO.Path]::GetFileNameWithoutExtension($query.Name)
             $queryContent = Get-Content $query.FullName -Raw
             $fullQueryName = "$category-$queryName"
+            $categoryName = "TeamsBotTelemetry-$(([System.Globalization.CultureInfo]::CurrentCulture.TextInfo.ToTitleCase($category)))"
             
             Write-Host "  💾 Publishing: $fullQueryName" -NoNewline
             
@@ -112,7 +113,7 @@ foreach ($category in $categories) {
                     --name $fullQueryName `
                     --description "Auto-saved KQL query from telemetry/$category/$($query.Name) - $(Get-Date -Format 'yyyy-MM-dd HH:mm')" `
                     --query-text $queryContent `
-                    --category "TeamsBotTelemetry" `
+                    --category $categoryName `
                     --output none 2>$null
                     
                 if ($LASTEXITCODE -eq 0) {
@@ -134,7 +135,7 @@ Write-Host "`n🎉 Completed! Published $successfulQueries out of $totalQueries 
 Write-Host "📍 Resource: $WorkspaceName in $ResourceGroupName" -ForegroundColor Cyan
 Write-Host "🌐 You can access them in the Azure portal:" -ForegroundColor Cyan
 Write-Host "   https://portal.azure.com/#@/resource/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Insights/components/$WorkspaceName/logs" -ForegroundColor Blue
-Write-Host "   Navigate to: Logs > Saved Queries > TeamsBotTelemetry category" -ForegroundColor Cyan
+Write-Host "   Navigate to: Logs > Saved Queries > TeamsBotTelemetry-* categories" -ForegroundColor Cyan
 
 if ($successfulQueries -lt $totalQueries) {
     Write-Host "`n⚠️  Some queries failed to publish. This might be due to:" -ForegroundColor Yellow
