@@ -18,6 +18,17 @@ param aadAppOauthAuthorityHost string
 @secure()
 param aadAppClientSecret string
 
+@description('Deploy telemetry (Log Analytics workspace + Query Pack)')
+param deployTelemetry bool = false
+
+@description('Use existing Log Analytics workspace instead of creating new one')
+param useExistingLogAnalyticsWorkspace bool = false
+
+@minLength(4)
+@maxLength(60)
+@description('Name of Log Analytics workspace (existing or new)')
+param logAnalyticsWorkspaceName string = '${resourceBaseName}-law'
+
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   location: location
   name: identityName
@@ -69,7 +80,8 @@ resource webApp 'Microsoft.Web/sites@2021-02-01' = {
 }
 
 resource webAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
-  name: '${webAppName}/appsettings'
+  parent: webApp
+  name: 'appsettings'
   properties: {
     WEBSITE_NODE_DEFAULT_VERSION: '~18'
     WEBSITE_RUN_FROM_PACKAGE: '1'
@@ -82,6 +94,37 @@ resource webAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     AAD_APP_TENANT_ID: aadAppTenantId
     AAD_APP_OAUTH_AUTHORITY_HOST: aadAppOauthAuthorityHost
     RUNNING_ON_AZURE: '1'
+  }
+}
+
+// Log Analytics workspace - create new or reference existing
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (deployTelemetry && !useExistingLogAnalyticsWorkspace) {
+  name: logAnalyticsWorkspaceName
+  location: location
+  properties: {
+    retentionInDays: 30
+  }
+  tags: {
+    purpose: 'bot-telemetry'
+  }
+}
+
+// Reference existing Log Analytics workspace
+resource existingLogAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = if (deployTelemetry && useExistingLogAnalyticsWorkspace) {
+  name: logAnalyticsWorkspaceName
+}
+
+// Query Pack deployment (modern approach)
+module telemetryQueryPack './queryPack.bicep' = if (deployTelemetry) {
+  name: 'telemetry-query-pack'
+  params: {
+    queryPackName: '${resourceBaseName}-telemetry-queries'
+    location: location
+    tags: {
+      Environment: 'Development'
+      Application: 'Teams-Bot'
+      Component: 'Telemetry'
+    }
   }
 }
 
@@ -103,3 +146,9 @@ output BOT_AZURE_APP_SERVICE_RESOURCE_ID string = webApp.id
 output BOT_DOMAIN string = webApp.properties.defaultHostName
 output BOT_ID string = identity.properties.clientId
 output BOT_TENANT_ID string = identity.properties.tenantId
+
+@description('Log Analytics workspace resource id (if deployed or referenced)')
+output logAnalyticsWorkspaceId string = deployTelemetry ? (useExistingLogAnalyticsWorkspace ? existingLogAnalytics.id : logAnalytics.id) : ''
+
+@description('Indicates whether telemetry Query Pack was deployed')
+output telemetryQueryPackDeployed bool = deployTelemetry

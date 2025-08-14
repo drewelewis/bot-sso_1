@@ -3,6 +3,9 @@ import express from "express";
 import path from "path";
 import send from "send";
 
+// Initialize OpenTelemetry FIRST - must be before any other imports
+import "./telemetry/otel-init";
+
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
 import {
@@ -18,6 +21,7 @@ import config from "./config";
 import { telemetryService } from "./telemetry";
 
 // Initialize telemetry as early as possible
+// OpenTelemetry is now initialized in otel-init.ts
 telemetryService.initialize();
 
 // Create adapter.

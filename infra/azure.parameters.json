@@ -22,6 +22,15 @@
     },
     "aadAppOauthAuthorityHost": {
       "value": "${{AAD_APP_OAUTH_AUTHORITY_HOST}}"
+    },
+    "deployTelemetry": {
+      "value": true
+    },
+    "useGeneratedSavedQueries": {
+      "value": true
+    },
+    "logAnalyticsWorkspaceName": {
+      "value": "bot${{RESOURCE_SUFFIX}}-law"
     }
   }
 }

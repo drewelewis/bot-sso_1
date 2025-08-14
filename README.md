@@ -163,6 +163,14 @@ After deployment, access your monitoring dashboards at:
 - **Azure Portal**: Application Insights > Logs > Saved Queries > "TeamsBotTelemetry-*" categories
 - **Direct Link**: Provided by the deployment script
 
+#### Step-by-Step Portal Navigation:
+1. **Open Azure Portal** → [portal.azure.com](https://portal.azure.com)
+2. **Find Application Insights** → Search "Application Insights" → Select your resource
+3. **Navigate to Logs** → Left sidebar → "Logs" (under Monitoring)
+4. **Access Saved Queries** → Left panel → "Saved Queries" 
+5. **Find Categories** → Look for "TeamsBotTelemetry-Core", "TeamsBotTelemetry-Users", etc.
+6. **Run Queries** → Click any query → Click "Run" → Customize time ranges
+
 For detailed documentation, see [`src/telemetry/README.md`](src/telemetry/README.md)
 
 ## Version History
