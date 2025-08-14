@@ -102,76 +102,133 @@ src/
 └── teamsBot.ts        # Main bot implementation
 ```
 
-## 📊 Monitoring and Telemetry
+## 📊 Telemetry & Monitoring
 
-This bot includes comprehensive telemetry using **OpenTelemetry** and **Azure Application Insights** for production-ready monitoring.
+This bot includes **enterprise-grade telemetry** using **OpenTelemetry** and **Azure Application Insights** for comprehensive observability and monitoring.
 
-### Features
-- ✅ **Message Tracking**: Track all bot interactions and user messages
-- ✅ **Performance Monitoring**: Response times, throughput, and bottlenecks
-- ✅ **Error Analysis**: Detailed error tracking with context
-- ✅ **User Analytics**: Active users, engagement patterns, and retention
-- ✅ **SSO Flow Monitoring**: Authentication success/failure tracking
-- ✅ **Custom Metrics**: Business-specific metrics and KPIs
+### 🏗️ Implementation Architecture
+- **OpenTelemetry Integration**: Industry-standard observability framework
+- **Dual Data Collection**: Console logs (traces) + spans (dependencies) for complete coverage
+- **Azure Application Insights**: Cloud-native analytics and alerting
+- **Query Pack Deployment**: 30+ pre-built KQL queries for instant insights
 
-### Configuration
-Telemetry is configured via environment variables in `env/.env.dev`:
+### 📈 What's Monitored
+- ✅ **Message Processing**: Volume, response times, success rates
+- ✅ **User Engagement**: Active users, session patterns, retention metrics
+- ✅ **SSO Authentication**: Login flows, success/failure tracking
+- ✅ **Performance**: API response times, bottlenecks, throughput analysis
+- ✅ **Error Tracking**: Detailed exception tracking with context
+- ✅ **Business Metrics**: Custom events and KPIs
+
+### 🚀 Quick Setup
+
+#### 1. Environment Configuration
+Telemetry is automatically configured via your development environment:
 
 ```bash
-# Application Insights connection string (automatically configured)
+# Already configured in env/.env.dev
 APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=...;IngestionEndpoint=...
-
-# Service identification
-TELEMETRY_SERVICE_NAME=ai-calendar-assistant
-TELEMETRY_SERVICE_VERSION=1.0.0
-ENVIRONMENT=development
 ```
 
-### Quick Start - Deploy Monitoring Queries
-Deploy 30+ pre-built KQL queries to Application Insights:
-
+#### 2. Deploy Monitoring Queries (One-Time Setup)
 ```powershell
-# Navigate to saved queries folder
-cd src\telemetry\saved_queries
-
-# Run automated deployment (uses your dev environment settings)
-.\publish-queries-to-insights.bat
+# Deploy 30+ pre-built queries to Application Insights
+cd infra
+az deployment group create \
+  --resource-group your-resource-group \
+  --template-file queryPackFixed.bicep \
+  --parameters resourceSuffix=your-suffix
 ```
 
-This will automatically:
-- Load your Azure settings from `env\.env.dev`
-- Find your Application Insights resource
-- Deploy all monitoring queries organized in separate categories:
-  - **TeamsBotTelemetry-Core** - Essential bot metrics
-  - **TeamsBotTelemetry-Users** - User analytics
-  - **TeamsBotTelemetry-Performance** - Performance monitoring
-  - **TeamsBotTelemetry-Errors** - Error analysis
-  - **TeamsBotTelemetry-Advanced** - Business intelligence
-  - **TeamsBotTelemetry-Debugging** - Data exploration
-- Provide direct portal links to access your dashboards
+#### 3. Access Your Dashboards
+**Azure Portal** → **Monitor** → **Query Packs** → `calendar-assistant-{suffix}-telemetry-queries`
 
-### Available Query Categories
-- **Core Metrics** (8 queries): Message volume, response times, success rates, health dashboard
-- **User Analytics** (5 queries): Active users, engagement patterns, user journeys
-- **Performance** (5 queries): Response time analysis, bottlenecks, throughput
-- **Error Analysis** (5 queries): Error categorization, failure tracking, recovery patterns
-- **Advanced Analytics** (4 queries): Correlation analysis, anomaly detection, trends
-- **Debugging** (6+ queries): Data exploration, validation, troubleshooting
+### 📊 Available Query Categories
 
-### Accessing Your Data
-After deployment, access your monitoring dashboards at:
-- **Azure Portal**: Application Insights > Logs > Saved Queries > "TeamsBotTelemetry-*" categories
-- **Direct Link**: Provided by the deployment script
+| Category | Queries | Purpose |
+|----------|---------|---------|
+| **Core Metrics** | 8 queries | Message volume, response times, health dashboard |
+| **User Analytics** | 5 queries | Active users, engagement patterns, session analysis |
+| **Performance** | 5 queries | Response time analysis, bottlenecks, throughput |
+| **Error Analysis** | 5 queries | Exception tracking, failure patterns, recovery |
+| **Advanced** | 4 queries | Trend analysis, anomaly detection, correlations |
+| **Debugging** | 6+ queries | Data exploration, validation, troubleshooting |
 
-#### Step-by-Step Portal Navigation:
-1. **Open Azure Portal** → [portal.azure.com](https://portal.azure.com)
-2. **Find Application Insights** → Search "Application Insights" → Select your resource
-3. **Navigate to Logs** → Left sidebar → "Logs" (under Monitoring)
-4. **Access Saved Queries** → Left panel → "Saved Queries" 
-5. **Find Categories** → Look for "TeamsBotTelemetry-Core", "TeamsBotTelemetry-Users", etc.
-6. **Run Queries** → Click any query → Click "Run" → Customize time ranges
+### 🔍 Sample Monitoring Queries
 
-For detailed documentation, see [`src/telemetry/README.md`](src/telemetry/README.md)
+#### Bot Health Dashboard
+```kql
+// Real-time bot performance overview
+traces
+| where timestamp > ago(1h)
+| summarize 
+    Messages = countif(name contains "Message"),
+    Errors = countif(severityLevel >= 3),
+    AvgResponse = avg(todouble(customDimensions["response_time_ms"]))
+by bin(timestamp, 5m)
+| render timechart
+```
+
+#### User Engagement Analysis
+```kql
+// Daily active users and message patterns
+traces
+| where name contains "Message" and timestamp > ago(7d)
+| extend UserId = tostring(customDimensions["userId"])
+| summarize 
+    ActiveUsers = dcount(UserId),
+    TotalMessages = count()
+by bin(timestamp, 1d)
+| render timechart
+```
+
+#### Error Trending
+```kql
+// Error rate monitoring
+union traces, exceptions
+| where timestamp > ago(24h)
+| extend IsError = iff(itemType == "exception" or severityLevel >= 3, 1, 0)
+| summarize 
+    ErrorRate = todouble(sum(IsError)) / count() * 100
+by bin(timestamp, 1h)
+| render timechart
+```
+
+### 🎯 Implementation Highlights
+
+#### OpenTelemetry Best Practices
+- **Early Initialization**: OpenTelemetry initialized before other imports
+- **Dual Approach**: Console.log for traces + spans for dependencies
+- **Structured Logging**: Consistent property names and data types
+- **Context Propagation**: User and conversation tracking across operations
+
+#### Key Features
+```typescript
+// Track user interactions
+telemetryService.trackMessage('User message processed', {
+  userId: 'user123',
+  messageType: 'text',
+  responseTime: 245,
+  success: true
+});
+
+// Monitor operations with timing
+const operation = telemetryService.startOperation('AI_API_Call')
+  .setContext(userId, conversationId);
+try {
+  const result = await callAPI();
+  operation.stop(true); // success
+} catch (error) {
+  operation.stop(false, error.message); // failure
+}
+```
+
+### 📚 Documentation
+- **Complete Implementation Guide**: [`src/telemetry/README.md`](src/telemetry/README.md)
+- **Query Documentation**: [`src/telemetry/queries.md`](src/telemetry/queries.md)
+- **Individual Query Files**: [`src/telemetry/saved_queries/`](src/telemetry/saved_queries/)
+
+---
 
 ## Version History
 
