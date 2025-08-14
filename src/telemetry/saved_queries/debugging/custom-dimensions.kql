@@ -1,5 +1,10 @@
 // Check Custom Dimensions Structure
-// Explore your custom dimensions
+// Explore custom dimensions in OpenTelemetry traces
 traces
-| take 5
-| project name, customDimensions
+| where timestamp > ago(1h) and isnotempty(customDimensions)
+| extend DimensionKeys = bag_keys(customDimensions)
+| summarize 
+    SampleCount = count(),
+    UniqueKeyPatterns = make_set(DimensionKeys),
+    SampleMessages = make_list(message, 5)
+| project SampleCount, UniqueKeyPatterns, SampleMessages

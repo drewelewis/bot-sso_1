@@ -1,6 +1,22 @@
 // SSO-Specific Issues
-// SSO authentication problems
+// SSO authentication problems from OpenTelemetry events
 traces
-| where name has "SSO" and (name has "Failed" or name has "Missing" or name has "Error")
-| summarize Count = count() by name, bin(timestamp, 1h)
+| where message contains "Custom Event:" and (
+    message contains "SSO_Token_Missing" or
+    message contains "SSO_Command_Failed_No_Dialog" or
+    message contains "SSO_ConsentRequired" or
+    message contains "SSO_Command_Not_Found"
+)
+| extend SSOIssueType = case(
+    message contains "SSO_Token_Missing", "Token Missing",
+    message contains "SSO_Command_Failed_No_Dialog", "No Dialog Available",
+    message contains "SSO_ConsentRequired", "Consent Required",
+    message contains "SSO_Command_Not_Found", "Command Not Found",
+    "Unknown SSO Issue"
+)
+| extend UserId = tostring(customDimensions["userId"])
+| summarize 
+    IssueCount = count(),
+    AffectedUsers = dcount(UserId)
+by SSOIssueType, bin(timestamp, 1h)
 | render timechart

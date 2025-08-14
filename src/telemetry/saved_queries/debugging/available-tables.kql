@@ -1,5 +1,15 @@
 // All Available Tables
-// See what tables have data
+// See what Application Insights tables have data (OpenTelemetry context)
 search "*"
-| summarize count() by $table
-| order by count_ desc
+| where timestamp > ago(24h)
+| summarize RecordCount = count() by $table
+| extend TableDescription = case(
+    $table == "traces", "Console logs, custom events (OpenTelemetry)",
+    $table == "dependencies", "Spans, operation timing (OpenTelemetry)", 
+    $table == "exceptions", "Error tracking",
+    $table == "requests", "HTTP requests",
+    $table == "customEvents", "Legacy custom events",
+    $table == "customMetrics", "Custom metrics",
+    "Other table"
+)
+| order by RecordCount desc

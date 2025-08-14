@@ -1,11 +1,18 @@
 // Success Rate by Hour
-// Bot message processing success rate
-traces
-| where name == "bot_message_processing"
-| extend Success = tobool(customDimensions["bot.success"])
+// Bot operation success rate from OpenTelemetry data
+union traces, dependencies
+| where message contains "Operation Completed:" or message contains "Operation Failed:" 
+     or name contains "MessageHandler" or name contains "AI_Response"
+| extend Success = case(
+    message contains "Operation Completed:", true,
+    message contains "Operation Failed:", false,
+    itemType == "dependency" and success == true, true,
+    itemType == "dependency" and success == false, false,
+    true  // default for other traces
+)
 | summarize 
     Total = count(),
     Successful = countif(Success == true),
     SuccessRate = todouble(countif(Success == true)) / count() * 100
-    by bin(timestamp, 1h)
+by bin(timestamp, 1h)
 | render timechart

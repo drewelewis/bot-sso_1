@@ -1,6 +1,11 @@
 // Application Lifecycle Monitoring
-// App starts and shutdowns
+// App starts and shutdowns from OpenTelemetry events
 traces
-| where name in ("Application_Started", "Application_Shutdown")
-| summarize Count = count() by name, bin(timestamp, 1d)
+| where message contains "Custom Event: Application_Started" or message contains "Custom Event: Application_Shutdown"
+| extend LifecycleEvent = case(
+    message contains "Application_Started", "Application Started",
+    message contains "Application_Shutdown", "Application Shutdown",
+    "Unknown"
+)
+| summarize Count = count() by LifecycleEvent, bin(timestamp, 1d)
 | render timechart

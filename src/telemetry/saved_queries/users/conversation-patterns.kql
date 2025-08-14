@@ -1,14 +1,16 @@
 // User Conversation Patterns
-// Messages per user session analysis
+// Messages per user session analysis from OpenTelemetry events
 traces
-| where name == "bot_message_processing"
+| where message contains "Custom Event: Message_Received"
 | extend 
-    UserId = tostring(customDimensions["bot.user_id"]),
-    ConversationId = tostring(customDimensions["bot.conversation_id"])
-| where isnotempty(UserId) and UserId != "unknown"
+    UserId = tostring(customDimensions["userId"]),
+    ConversationId = tostring(customDimensions["conversationId"])
+| where isnotempty(UserId) and UserId != "unknown" and isnotempty(ConversationId)
 | summarize MessageCount = count() by UserId, ConversationId
 | summarize 
     SingleMessage = countif(MessageCount == 1),
     ShortConvo = countif(MessageCount >= 2 and MessageCount <= 5),
     MediumConvo = countif(MessageCount >= 6 and MessageCount <= 15),
-    LongConvo = countif(MessageCount > 15)
+    LongConvo = countif(MessageCount > 15),
+    TotalConversations = count(),
+    AvgMessagesPerConvo = avg(MessageCount)

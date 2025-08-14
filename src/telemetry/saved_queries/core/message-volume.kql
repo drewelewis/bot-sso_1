@@ -1,6 +1,6 @@
 // Message Volume Over Time
-// Shows bot message volume by hour
+// Shows bot message volume by hour from OpenTelemetry traces
 traces
-| where name == "bot_message_processing"
+| where message contains "Custom Event: Message_Received" or message contains "Bot Message:"
 | summarize MessageCount = count() by bin(timestamp, 1h)
 | render timechart

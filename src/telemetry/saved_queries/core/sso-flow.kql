@@ -1,6 +1,22 @@
-// SSO Authentication Flow
-// Complete SSO event tracking
+// SSO Authentication Flow Analysis
+// Tracks SSO authentication steps and success rates from OpenTelemetry
 traces
-| where name has "SSO"
-| summarize Count = count() by name, bin(timestamp, 1h)
+| where message contains "Custom Event:" and (
+    message contains "SSO_Dialog_Started" or
+    message contains "SSO_Dialog_Completed" or 
+    message contains "SSO_Command_Triggered" or
+    message contains "SSO_Token_Processed" or
+    message contains "SSO_Token_Missing" or
+    message contains "SSO_ConsentRequired"
+)
+| extend SSOEvent = case(
+    message contains "SSO_Dialog_Started", "Dialog Started",
+    message contains "SSO_Dialog_Completed", "Dialog Completed",
+    message contains "SSO_Command_Triggered", "Command Triggered", 
+    message contains "SSO_Token_Processed", "Token Processed",
+    message contains "SSO_Token_Missing", "Token Missing",
+    message contains "SSO_ConsentRequired", "Consent Required",
+    "Unknown"
+)
+| summarize Count = count() by SSOEvent, bin(timestamp, 1h)
 | render timechart

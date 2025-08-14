@@ -1,12 +1,22 @@
 // AI Response Time Distribution
-// AI response performance breakdown
-traces
-| where name == "External_AI_API"
-| extend Duration = todouble(customDimensions["operation.duration_ms"])
-| where isnotnull(Duration)
+// AI response performance breakdown from OpenTelemetry data
+union traces, dependencies
+| where (message contains "Custom Event: External_AI_Request" or 
+        message contains "Custom Event: External_AI_Success" or
+        name contains "External_AI_API" or 
+        name contains "AI_Response")
+| extend Duration = case(
+    itemType == "dependency", duration,
+    message contains "External_AI_Success", todouble(customDimensions["duration_ms"]),
+    message contains "AI_Response_Sent", todouble(customDimensions["responseTime"]),
+    0.0
+)
+| where Duration > 0
 | summarize 
     ["< 1sec"] = countif(Duration < 1000),
     ["1-3sec"] = countif(Duration >= 1000 and Duration < 3000),
     ["3-5sec"] = countif(Duration >= 3000 and Duration < 5000),
     ["5-10sec"] = countif(Duration >= 5000 and Duration < 10000),
-    ["> 10sec"] = countif(Duration >= 10000)
+    ["> 10sec"] = countif(Duration >= 10000),
+    AvgDuration = avg(Duration),
+    P95Duration = percentile(Duration, 95)

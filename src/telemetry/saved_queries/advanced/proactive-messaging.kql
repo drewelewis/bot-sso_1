@@ -1,6 +1,16 @@
 // Proactive Messaging Analytics
-// Proactive message flow
+// Proactive message flow from OpenTelemetry events
 traces
-| where name has "ProactiveMessage"
-| summarize Count = count() by name, bin(timestamp, 1h)
+| where message contains "Custom Event:" and (
+    message contains "ProactiveMessage_Requested" or
+    message contains "ProactiveMessage_Sent" or
+    message contains "ProactiveMessage_UserNotFound"
+)
+| extend ProactiveEvent = case(
+    message contains "ProactiveMessage_Requested", "Message Requested",
+    message contains "ProactiveMessage_Sent", "Message Sent",
+    message contains "ProactiveMessage_UserNotFound", "User Not Found",
+    "Unknown"
+)
+| summarize Count = count() by ProactiveEvent, bin(timestamp, 1h)
 | render timechart

@@ -1,7 +1,12 @@
 // Message Type Analysis
-// What types of messages are users sending
+// What types of messages are users sending via OpenTelemetry
 traces
-| where name == "bot_message_processing"
-| extend MessageType = tostring(customDimensions["bot.message_type"])
+| where message contains "Custom Event: Message_Received"
+| extend MessageType = case(
+    isnotempty(customDimensions["messageType"]), tostring(customDimensions["messageType"]),
+    isnotempty(customDimensions["activityType"]), tostring(customDimensions["activityType"]),
+    "unknown"
+)
+| where MessageType != "unknown"
 | summarize Count = count() by MessageType
-| render piechart title="Message Types"
+| render piechart title="Message Types Distribution"

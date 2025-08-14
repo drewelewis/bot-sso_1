@@ -1,11 +1,32 @@
 // All Bot Events Overview
-// Overview of all bot events
+// Overview of all bot events from OpenTelemetry implementation
 traces
-| where name in (
-    "Message_Received", "AI_Response_Requested", "AI_Response_Sent",
-    "SSO_Command_Triggered", "SSO_Dialog_Started", "SSO_Dialog_Completed",
-    "External_AI_Request", "External_AI_Success", "External_AI_Error",
-    "Clear_History_Started", "Clear_History_Success", "ProactiveMessage_Sent"
+| where message contains "Custom Event:" or message contains "Bot Message:" or message contains "Operation"
+| extend EventType = case(
+    message contains "Custom Event:", "Custom Event",
+    message contains "Bot Message:", "Bot Message", 
+    message contains "Operation Started:", "Operation Started",
+    message contains "Operation Completed:", "Operation Completed",
+    message contains "Operation Failed:", "Operation Failed",
+    "Other"
 )
-| summarize Count = count() by name, bin(timestamp, 1h)
+| extend EventName = case(
+    message contains "Message_Received", "Message_Received",
+    message contains "AI_Response_Requested", "AI_Response_Requested", 
+    message contains "AI_Response_Sent", "AI_Response_Sent",
+    message contains "SSO_Command_Triggered", "SSO_Command_Triggered",
+    message contains "SSO_Dialog_Started", "SSO_Dialog_Started",
+    message contains "SSO_Dialog_Completed", "SSO_Dialog_Completed",
+    message contains "External_AI_Request", "External_AI_Request",
+    message contains "External_AI_Success", "External_AI_Success", 
+    message contains "External_AI_Error", "External_AI_Error",
+    message contains "Clear_History_Started", "Clear_History_Started",
+    message contains "Clear_History_Success", "Clear_History_Success",
+    message contains "ProactiveMessage_Sent", "ProactiveMessage_Sent",
+    message contains "Application_Started", "Application_Started",
+    message contains "Application_Shutdown", "Application_Shutdown",
+    "Other"
+)
+| where EventName != "Other"
+| summarize Count = count() by EventName, bin(timestamp, 1h)
 | render timechart

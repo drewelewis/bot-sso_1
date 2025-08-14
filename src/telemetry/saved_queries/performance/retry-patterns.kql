@@ -1,11 +1,19 @@
 // Retry Pattern Analysis
-// Look for retry patterns in AI requests
+// Look for retry patterns in AI requests from OpenTelemetry events
 traces
-| where name == "External_AI_Request"
+| where message contains "Custom Event: External_AI_Request" or 
+       message contains "Custom Event: AI_Response_Requested"
 | extend 
     UserId = tostring(customDimensions["userId"]),
-    ConversationId = tostring(customDimensions["conversationId"])
-| summarize RequestCount = count() by UserId, ConversationId, bin(timestamp, 1m)
-| where RequestCount > 1
-| summarize RetryUsers = dcount(UserId), TotalRetries = sum(RequestCount - 1) by bin(timestamp, 1h)
-| render timechart title="AI Request Retries"
+    ConversationId = tostring(customDimensions["conversationId"]),
+    SessionId = tostring(customDimensions["sessionId"])
+| where isnotempty(UserId) and isnotempty(ConversationId)
+| summarize RequestCount = count() by UserId, ConversationId, SessionId, bin(timestamp, 1m)
+| where RequestCount > 1  // Multiple requests within same minute = potential retry
+| extend RetryCount = RequestCount - 1
+| summarize 
+    RetryUsers = dcount(UserId), 
+    TotalRetries = sum(RetryCount),
+    AvgRetriesPerUser = avg(RetryCount)
+by bin(timestamp, 1h)
+| render timechart title="AI Request Retry Patterns"

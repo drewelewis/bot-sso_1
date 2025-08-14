@@ -1,18 +1,32 @@
 // User Engagement Funnel
-// User journey through bot features
+// User journey through bot features from OpenTelemetry events
 let users = traces
-| where timestamp > ago(1d) and name == "Message_Received"
+| where timestamp > ago(1d) and message contains "Custom Event: Message_Received"
 | extend UserId = tostring(customDimensions["userId"])
 | where isnotempty(UserId)
 | summarize by UserId;
 let ssoUsers = traces
-| where timestamp > ago(1d) and name == "SSO_Command_Triggered"
+| where timestamp > ago(1d) and message contains "Custom Event: SSO_Command_Triggered"
 | extend UserId = tostring(customDimensions["userId"])
 | where isnotempty(UserId)
 | summarize by UserId;
 let aiUsers = traces
-| where timestamp > ago(1d) and name == "AI_Response_Requested"
+| where timestamp > ago(1d) and message contains "Custom Event: AI_Response_Requested"
 | extend UserId = tostring(customDimensions["userId"])
+| where isnotempty(UserId)
+| summarize by UserId;
+let proactiveUsers = traces
+| where timestamp > ago(1d) and message contains "Custom Event: ProactiveMessage_Sent"
+| extend UserId = tostring(customDimensions["userId"])
+| where isnotempty(UserId)
+| summarize by UserId;
+print 
+    TotalUsers = toscalar(users | count),
+    SSOUsers = toscalar(ssoUsers | count),
+    AIUsers = toscalar(aiUsers | count),
+    ProactiveUsers = toscalar(proactiveUsers | count),
+    SSOConversionRate = round(todouble(toscalar(ssoUsers | count)) / todouble(toscalar(users | count)) * 100, 2),
+    AIConversionRate = round(todouble(toscalar(aiUsers | count)) / todouble(toscalar(users | count)) * 100, 2)
 | where isnotempty(UserId)
 | summarize by UserId;
 print 

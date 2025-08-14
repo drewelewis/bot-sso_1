@@ -1,5 +1,20 @@
-// Find Your Span Names
-// See all span names in your data
-traces
-| summarize count() by name
-| order by count_ desc
+// Find Your Span Names and Event Types
+// See all OpenTelemetry spans and event patterns in your data
+union traces, dependencies
+| where timestamp > ago(24h)
+| extend DataType = case(
+    itemType == "dependency", "Dependency/Span",
+    message contains "Custom Event:", "Custom Event",
+    message contains "Bot Message:", "Bot Message", 
+    message contains "Operation", "Operation",
+    "Other Trace"
+)
+| extend EventName = case(
+    itemType == "dependency", name,
+    message contains "Custom Event:", extract(@"Custom Event: ([^,\s]+)", 1, message),
+    message contains "Operation Started:", extract(@"Operation Started: ([^,]+)", 1, message),
+    message contains "Bot Message:", "Bot Message",
+    "Other"
+)
+| summarize Count = count() by DataType, EventName
+| order by Count desc

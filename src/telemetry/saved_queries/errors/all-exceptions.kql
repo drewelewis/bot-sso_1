@@ -1,5 +1,20 @@
-// All Exceptions
-// Exception tracking
-exceptions
-| summarize Count = count() by type, bin(timestamp, 1h)
+// All Exceptions and Errors
+// Exception tracking from both exceptions table and error traces
+union exceptions, traces
+| where itemType == "exception" 
+     or (itemType == "trace" and (severityLevel >= 3 or message contains "❌ Exception:" or message contains "Operation Failed:"))
+| extend ErrorSource = case(
+    itemType == "exception", "Exception Table",
+    message contains "❌ Exception:", "Telemetry Service",
+    message contains "Operation Failed:", "Operation Failure",
+    severityLevel >= 3, "High Severity Trace",
+    "Other"
+)
+| extend ErrorType = case(
+    itemType == "exception", type,
+    message contains "❌ Exception:", "Tracked Exception",
+    message contains "Operation Failed:", "Operation Error",
+    "Trace Error"
+)
+| summarize Count = count() by ErrorType, bin(timestamp, 1h)
 | render timechart

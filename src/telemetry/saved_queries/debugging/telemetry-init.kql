@@ -1,6 +1,14 @@
 // Telemetry Service Initialization
-// Check telemetry service initialization
+// Check OpenTelemetry service initialization and startup events
 traces
-| where message has "Telemetry initialized" or message has "OpenTelemetry"
-| project timestamp, message, customDimensions
+| where message contains "TelemetryService initialized" or 
+       message contains "OpenTelemetry Azure Monitor initialized" or
+       message contains "Custom Event: Application_Started"
+| extend InitType = case(
+    message contains "TelemetryService initialized", "Telemetry Service",
+    message contains "OpenTelemetry Azure Monitor initialized", "OpenTelemetry Monitor",
+    message contains "Application_Started", "Application Startup",
+    "Other"
+)
+| project timestamp, InitType, message, customDimensions
 | order by timestamp desc

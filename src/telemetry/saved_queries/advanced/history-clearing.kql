@@ -1,13 +1,23 @@
 // Conversation History Clearing Patterns
-// How often users clear their history
+// How often users clear their history via OpenTelemetry events
 traces
-| where name has "Clear_History"
+| where message contains "Custom Event:" and (
+    message contains "Clear_History_Started" or
+    message contains "Clear_History_Success" or 
+    message contains "Clear_History_Failed"
+)
 | extend 
     UserId = tostring(customDimensions["userId"]),
-    Success = name == "Clear_History_Success"
+    Success = message contains "Clear_History_Success",
+    EventType = case(
+        message contains "Clear_History_Started", "Started",
+        message contains "Clear_History_Success", "Success",
+        message contains "Clear_History_Failed", "Failed",
+        "Unknown"
+    )
 | summarize 
     TotalAttempts = count(),
     SuccessfulClears = countif(Success),
     UniqueUsers = dcount(UserId)
-    by bin(timestamp, 1d)
+by bin(timestamp, 1d)
 | render timechart

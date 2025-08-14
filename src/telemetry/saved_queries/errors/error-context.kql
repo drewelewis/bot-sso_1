@@ -1,14 +1,33 @@
 // Error Context Analysis
-// Errors with user context
-exceptions
-| join kind=leftouter (
-    traces
-    | where timestamp > ago(1d)
-    | extend UserId = tostring(customDimensions["bot.user_id"])
-    | where isnotempty(UserId)
-    | summarize by UserId, bin(timestamp, 1m)
-) on $left.timestamp == $right.timestamp
-| project timestamp, type, outerMessage, UserId
-| where isnotempty(UserId)
-| summarize ErrorCount = count() by UserId, type
+// Errors with user context from OpenTelemetry implementation
+union exceptions, traces
+| where itemType == "exception" or 
+       (itemType == "trace" and (
+           message contains "❌ Exception:" or 
+           message contains "Operation Failed:" or 
+           severityLevel >= 3
+       ))
+| extend 
+    ErrorType = case(
+        itemType == "exception", type,
+        message contains "❌ Exception:", "Telemetry Exception",
+        message contains "Operation Failed:", "Operation Failure",
+        "High Severity Trace"
+    ),
+    UserId = case(
+        itemType == "exception", tostring(customDimensions["userId"]),
+        itemType == "trace", tostring(customDimensions["userId"]),
+        "unknown"
+    ),
+    ErrorMessage = case(
+        itemType == "exception", outerMessage,
+        itemType == "trace", message,
+        ""
+    )
+| where UserId != "unknown" and isnotempty(UserId)
+| summarize 
+    ErrorCount = count(),
+    UniqueErrorTypes = make_set(ErrorType),
+    LatestError = max(timestamp)
+by UserId
 | top 10 by ErrorCount

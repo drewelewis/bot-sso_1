@@ -1,6 +1,19 @@
 // Custom Metrics Analysis
-// Your OpenTelemetry custom metrics
-customMetrics
-| where name startswith "bot_"
-| summarize Count = count(), AvgValue = avg(value), MaxValue = max(value) by name
-| order by Count desc
+// Custom events and metrics from OpenTelemetry implementation
+traces
+| where message contains "Custom Event:" 
+| extend EventName = extract(@"Custom Event: ([^,\s]+)", 1, message)
+| extend MetricValue = case(
+    isnotempty(customDimensions["responseTime"]), todouble(customDimensions["responseTime"]),
+    isnotempty(customDimensions["messageLength"]), todouble(customDimensions["messageLength"]),
+    isnotempty(customDimensions["duration_ms"]), todouble(customDimensions["duration_ms"]),
+    1.0  // Default count metric
+)
+| where isnotempty(EventName)
+| summarize 
+    EventCount = count(),
+    AvgValue = avg(MetricValue),
+    MaxValue = max(MetricValue),
+    MinValue = min(MetricValue)
+by EventName
+| order by EventCount desc

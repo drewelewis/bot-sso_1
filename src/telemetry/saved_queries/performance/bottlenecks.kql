@@ -1,8 +1,24 @@
 // Performance Bottlenecks
-// Operations taking longer than expected
-traces
-| where customDimensions.eventType == "MessageResponseTime"
-| extend responseTime = todouble(customDimensions.responseTime)
-| where responseTime > 1000  // Messages taking more than 1 second
-| summarize SlowMessages = count() by bin(timestamp, 1h)
+// Operations taking longer than expected in OpenTelemetry data
+union traces, dependencies
+| extend Duration = case(
+    itemType == "dependency", duration,
+    message contains "Custom Event: Message_Received", todouble(customDimensions["responseTime"]),
+    message contains "Operation Completed:", todouble(customDimensions["duration_ms"]),
+    0.0
+)
+| extend OperationType = case(
+    itemType == "dependency", strcat("Dependency: ", name),
+    message contains "Message_Received", "Message Processing",
+    message contains "AI_Response", "AI Response",
+    message contains "SSO_", "SSO Operation",
+    message contains "External_AI", "External AI",
+    "Other Operation"
+)
+| where Duration > 1000  // Operations taking more than 1 second
+| summarize 
+    SlowOperationCount = count(),
+    AvgSlowDuration = avg(Duration),
+    MaxDuration = max(Duration)
+by OperationType, bin(timestamp, 1h)
 | render timechart

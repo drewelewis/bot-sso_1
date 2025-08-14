@@ -1,7 +1,21 @@
 // Recent Bot Activity
-// Look for recent bot activity (last hour)
+// Look for recent bot activity from OpenTelemetry events (last hour)
 traces
-| where timestamp > ago(1h) and (name has "bot" or name has "Message" or name has "SSO" or name has "AI")
-| project timestamp, name, customDimensions
+| where timestamp > ago(1h) and (
+    message contains "Custom Event:" or 
+    message contains "Bot Message:" or 
+    message contains "Operation" or
+    message contains "TelemetryService"
+)
+| extend ActivityType = case(
+    message contains "Custom Event:", "Custom Event",
+    message contains "Bot Message:", "Bot Message",
+    message contains "Operation Started:", "Operation Start",
+    message contains "Operation Completed:", "Operation Complete", 
+    message contains "Operation Failed:", "Operation Failed",
+    message contains "TelemetryService initialized", "Service Init",
+    "Other"
+)
+| project timestamp, ActivityType, message, customDimensions
 | order by timestamp desc
 | take 20

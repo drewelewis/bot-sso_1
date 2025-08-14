@@ -1,15 +1,32 @@
 // Operation Performance Analysis
-// Performance analysis for all operations
-traces
-| where isnotempty(customDimensions["operation.duration_ms"])
+// Performance analysis using OpenTelemetry dependencies and traces
+union dependencies, traces
+| where itemType == "dependency" 
+     or (itemType == "trace" and (message contains "Operation Started:" or message contains "Operation Completed:"))
 | extend 
-    OperationName = tostring(customDimensions["operation.name"]),
-    Duration = todouble(customDimensions["operation.duration_ms"]),
-    Success = tobool(customDimensions["operation.success"])
+    OperationName = case(
+        itemType == "dependency", name,
+        message contains "Operation Started:", extract(@"Operation Started: ([^,]+)", 1, message),
+        message contains "Operation Completed:", extract(@"Operation Completed: ([^,]+)", 1, message),
+        "Unknown"
+    ),
+    Duration = case(
+        itemType == "dependency", duration,
+        todouble(customDimensions["duration_ms"]),
+        0.0
+    ),
+    Success = case(
+        itemType == "dependency", success,
+        message contains "Operation Completed:", true,
+        message contains "Operation Failed:", false,
+        true
+    )
+| where OperationName != "Unknown" and Duration > 0
 | summarize 
     Count = count(),
     AvgDuration = avg(Duration),
     P95Duration = percentile(Duration, 95),
+    P99Duration = percentile(Duration, 99),
     SuccessRate = todouble(countif(Success == true)) / count() * 100
-    by OperationName
+by OperationName
 | order by AvgDuration desc

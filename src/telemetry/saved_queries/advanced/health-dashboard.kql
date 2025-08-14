@@ -1,16 +1,25 @@
 // Service Health Dashboard (Advanced)
-// Comprehensive health metrics
+// Comprehensive health metrics using OpenTelemetry data
 let timeWindow = 1h;
-let messages = traces | where timestamp > ago(timeWindow) and name == "bot_message_processing" | count;
-let errors = exceptions | where timestamp > ago(timeWindow) | count;
-let avgResponseTime = traces 
-    | where timestamp > ago(timeWindow) and isnotnull(customDimensions["bot.response_time_ms"])
-    | extend ResponseTime = todouble(customDimensions["bot.response_time_ms"])
+let messages = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: Message_Received" | count;
+let errors = union exceptions, traces | where timestamp > ago(timeWindow) and (itemType == "exception" or message contains "❌ Exception:" or message contains "Operation Failed:") | count;
+let avgResponseTime = union traces, dependencies
+    | where timestamp > ago(timeWindow) and (
+        message contains "Custom Event: Message_Received" or 
+        name contains "MessageHandler" or 
+        name contains "AI_Response"
+    )
+    | extend ResponseTime = case(
+        message contains "Custom Event: Message_Received", todouble(customDimensions["responseTime"]),
+        itemType == "dependency", duration,
+        0.0
+    )
+    | where ResponseTime > 0
     | summarize avg(ResponseTime);
-let aiRequests = traces | where timestamp > ago(timeWindow) and name == "External_AI_Request" | count;
-let aiErrors = traces | where timestamp > ago(timeWindow) and name == "External_AI_Error" | count;
-let ssoAttempts = traces | where timestamp > ago(timeWindow) and name == "SSO_Dialog_Started" | count;
-let ssoSuccess = traces | where timestamp > ago(timeWindow) and name == "SSO_Dialog_Completed" | count;
+let aiRequests = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: External_AI_Request" | count;
+let aiErrors = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: External_AI_Error" | count;
+let ssoAttempts = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: SSO_Dialog_Started" | count;
+let ssoSuccess = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: SSO_Dialog_Completed" | count;
 print 
     Messages = toscalar(messages),
     Errors = toscalar(errors),
