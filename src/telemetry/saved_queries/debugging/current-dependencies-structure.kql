@@ -1,0 +1,8 @@
+// Check Current Dependencies Structure
+// See what span data is actually being generated
+
+dependencies
+| where timestamp > ago(1d)
+| project timestamp, name, type, data, success, duration, customDimensions
+| order by timestamp desc
+| take 20

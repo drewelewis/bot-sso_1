@@ -1,0 +1,13 @@
+// Simple Data Check - What telemetry data exists?
+// Run this first to see what's actually in your Application Insights
+
+// Check traces table (console.log data)
+traces
+| where timestamp > ago(30d)  // Extended to 30 days
+| project timestamp, message, severityLevel, customDimensions
+| order by timestamp desc
+| take 50  // More results
+
+// Alternative: Check if ANY data exists in traces
+// traces
+// | count

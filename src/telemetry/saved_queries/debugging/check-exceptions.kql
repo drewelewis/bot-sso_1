@@ -1,0 +1,8 @@
+// Check Exceptions Table
+// Run this to see exception telemetry data
+
+exceptions
+| where timestamp > ago(7d)
+| project timestamp, type, outerMessage, details
+| order by timestamp desc
+| take 20

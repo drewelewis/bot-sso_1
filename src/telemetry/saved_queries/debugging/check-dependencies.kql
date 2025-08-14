@@ -1,0 +1,8 @@
+// Check Dependencies Table
+// Run this to see dependency telemetry data
+
+dependencies
+| where timestamp > ago(7d)
+| project timestamp, name, type, data, success, duration
+| order by timestamp desc
+| take 20

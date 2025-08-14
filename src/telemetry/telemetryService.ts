@@ -45,13 +45,28 @@ export class TelemetryService {
       return;
     }
     
+    // Create a trace span for the message
+    const span = this.tracer.startSpan('Bot Message');
+    
     if (typeof message === 'string') {
-      // OpenTelemetry approach: Use console.log for traces
+      span.setAttributes({
+        'message.content': message,
+        'message.type': 'bot_message',
+        ...properties
+      });
+      
+      // Also log to console for development
       console.log('📨 Bot Message:', message, properties || {});
     } else {
-      // Handle object-style message tracking
+      span.setAttributes({
+        'message.content': JSON.stringify(message),
+        'message.type': 'bot_message_object'
+      });
+      
       console.log('📨 Bot Message:', message);
     }
+    
+    span.end();
   }
 
   trackCustomEvent(eventName: string, properties?: Record<string, any>): void {
@@ -59,8 +74,18 @@ export class TelemetryService {
       return;
     }
     
-    // OpenTelemetry approach: Use console.log for custom events
+    // Create a trace span for the custom event
+    const span = this.tracer.startSpan('Custom Event');
+    span.setAttributes({
+      'event.name': eventName,
+      'event.type': 'custom_event',
+      ...properties
+    });
+    
+    // Also log to console for development
     console.log('🎯 Custom Event:', eventName, properties || {});
+    
+    span.end();
   }
 
   trackException(error: Error, properties?: Record<string, any>): void {
@@ -68,11 +93,24 @@ export class TelemetryService {
       return;
     }
     
-    // OpenTelemetry approach: Use console.error for exceptions
+    // Create a trace span for the exception
+    const span = this.tracer.startSpan('Exception');
+    span.setAttributes({
+      'exception.type': error.name,
+      'exception.message': error.message,
+      'exception.stack': error.stack || '',
+      ...properties
+    });
+    span.recordException(error);
+    span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+    
+    // Also log to console for development
     console.error('❌ Exception:', error.message, {
       stack: error.stack,
       properties: properties || {}
     });
+    
+    span.end();
   }
 
   startOperation(operationName: string | OperationTelemetry): OperationTimer {

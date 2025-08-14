@@ -1,0 +1,8 @@
+// Check All Tables - Find where data might be
+// Run this to see what tables have any data at all
+
+// Check if any data exists anywhere
+union traces, dependencies, exceptions, requests, customEvents, pageViews
+| where timestamp > ago(30d)
+| summarize count() by $table
+| order by count_ desc

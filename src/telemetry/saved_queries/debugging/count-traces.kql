@@ -1,0 +1,3 @@
+// Just count traces to see if ANY exist
+traces
+| count

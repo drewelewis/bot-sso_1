@@ -1,0 +1,6 @@
+// Check what's in dependencies - this should have data
+dependencies
+| where timestamp > ago(7d)
+| project timestamp, name, type, data, success, duration, target, customDimensions
+| order by timestamp desc
+| take 20
