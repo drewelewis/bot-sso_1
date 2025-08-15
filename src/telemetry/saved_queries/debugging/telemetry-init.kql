@@ -1,14 +1,36 @@
 // Telemetry Service Initialization
 // Check OpenTelemetry service initialization and startup events
-traces
-| where message contains "TelemetryService initialized" or 
-       message contains "OpenTelemetry Azure Monitor initialized" or
-       message contains "Custom Event: Application_Started"
-| extend InitType = case(
-    message contains "TelemetryService initialized", "Telemetry Service",
-    message contains "OpenTelemetry Azure Monitor initialized", "OpenTelemetry Monitor",
-    message contains "Application_Started", "Application Startup",
-    "Other"
-)
-| project timestamp, InitType, message, customDimensions
+
+// Check for application startup events in dependencies
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] in ("Application_Started", "TelemetryService_Initialized", "OpenTelemetry_Initialized")
+| extend EventName = tostring(customDimensions["event.name"])
+| project timestamp, EventName, customDimensions
 | order by timestamp desc
+
+// Check first telemetry events after startup
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| summarize FirstEvent = min(timestamp), LastEvent = max(timestamp), Count = count() by EventName = tostring(customDimensions["event.name"])
+| order by FirstEvent desc
+
+// Check traces table for console log initialization messages
+traces
+| where timestamp > ago(7d)
+| where message contains "TelemetryService" or 
+       message contains "OpenTelemetry" or
+       message contains "Azure Monitor"
+| project timestamp, message, severityLevel
+| order by timestamp desc
+
+// Application startup timeline
+dependencies
+| where timestamp > ago(24h)
+| where name == "Custom Event"
+| extend EventName = tostring(customDimensions["event.name"])
+| where EventName in ("Application_Started", "Bot_Ready", "SSO_Initialized")
+| project timestamp, EventName, customDimensions
+| order by timestamp asc

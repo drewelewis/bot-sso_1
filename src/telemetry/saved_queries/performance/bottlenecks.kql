@@ -1,24 +1,36 @@
 // Performance Bottlenecks
 // Operations taking longer than expected in OpenTelemetry data
-union traces, dependencies
-| extend Duration = case(
-    itemType == "dependency", duration,
-    message contains "Custom Event: Message_Received", todouble(customDimensions["responseTime"]),
-    message contains "Operation Completed:", todouble(customDimensions["duration_ms"]),
-    0.0
-)
+
+// Check slow dependencies
+dependencies
+| where timestamp > ago(7d)
+| where duration > 1000  // Operations taking more than 1 second
+| extend OperationType = strcat("Dependency: ", name)
+| summarize 
+    SlowOperationCount = count(),
+    AvgSlowDuration = avg(duration),
+    MaxDuration = max(duration)
+by OperationType, bin(timestamp, 1h)
+| render timechart
+
+// Check slow custom events with duration
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where isnotempty(customDimensions["duration_ms"])
+| extend 
+    Duration = todouble(customDimensions["duration_ms"]),
+    EventName = tostring(customDimensions["event.name"])
+| where Duration > 1000  // Events taking more than 1 second
 | extend OperationType = case(
-    itemType == "dependency", strcat("Dependency: ", name),
-    message contains "Message_Received", "Message Processing",
-    message contains "AI_Response", "AI Response",
-    message contains "SSO_", "SSO Operation",
-    message contains "External_AI", "External AI",
-    "Other Operation"
+    EventName contains "Message_Received", "Message Processing",
+    EventName contains "AI_Response", "AI Response", 
+    EventName contains "SSO_", "SSO Operation",
+    EventName contains "External_AI", "External AI",
+    strcat("Custom Event: ", EventName)
 )
-| where Duration > 1000  // Operations taking more than 1 second
 | summarize 
     SlowOperationCount = count(),
     AvgSlowDuration = avg(Duration),
     MaxDuration = max(Duration)
 by OperationType, bin(timestamp, 1h)
-| render timechart

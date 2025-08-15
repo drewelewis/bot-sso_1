@@ -1,10 +1,11 @@
 // Application Lifecycle Monitoring
 // App starts and shutdowns from OpenTelemetry events
-traces
-| where message contains "Custom Event: Application_Started" or message contains "Custom Event: Application_Shutdown"
+dependencies
+| where timestamp > ago(30d)
+| where name == "Custom Event" and customDimensions["event.name"] in ("Application_Started", "Application_Shutdown")
 | extend LifecycleEvent = case(
-    message contains "Application_Started", "Application Started",
-    message contains "Application_Shutdown", "Application Shutdown",
+    customDimensions["event.name"] == "Application_Started", "Application Started",
+    customDimensions["event.name"] == "Application_Shutdown", "Application Shutdown",
     "Unknown"
 )
 | summarize Count = count() by LifecycleEvent, bin(timestamp, 1d)

@@ -1,0 +1,16 @@
+// Practical Application Activity
+// Shows actual bot activity patterns and usage over time
+dependencies
+| where timestamp > ago(7d)
+| where type == "InProc" and name in ("Custom Event", "Bot Message", "ProactiveMessage")
+| extend ActivityType = case(
+    name == "Custom Event" and customDimensions["event.name"] == "Application_Started", "App Started",
+    name == "Custom Event" and customDimensions["event.name"] == "Application_Shutdown", "App Shutdown", 
+    name == "Custom Event" and customDimensions["event.name"] contains "ProactiveMessage", "Proactive Activity",
+    name == "Custom Event" and customDimensions["event.name"] contains "AI_Response", "AI Activity",
+    name == "Bot Message", "User Interaction",
+    name == "ProactiveMessage", "Proactive Operation",
+    "Other Activity"
+)
+| summarize ActivityCount = count() by ActivityType, bin(timestamp, 1h)
+| render timechart

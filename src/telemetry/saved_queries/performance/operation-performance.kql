@@ -1,27 +1,12 @@
 // Operation Performance Analysis
-// Performance analysis using OpenTelemetry dependencies and traces
-union dependencies, traces
-| where itemType == "dependency" 
-     or (itemType == "trace" and (message contains "Operation Started:" or message contains "Operation Completed:"))
+// Performance analysis using OpenTelemetry dependencies
+dependencies
+| where timestamp > ago(7d)
 | extend 
-    OperationName = case(
-        itemType == "dependency", name,
-        message contains "Operation Started:", extract(@"Operation Started: ([^,]+)", 1, message),
-        message contains "Operation Completed:", extract(@"Operation Completed: ([^,]+)", 1, message),
-        "Unknown"
-    ),
-    Duration = case(
-        itemType == "dependency", duration,
-        todouble(customDimensions["duration_ms"]),
-        0.0
-    ),
-    Success = case(
-        itemType == "dependency", success,
-        message contains "Operation Completed:", true,
-        message contains "Operation Failed:", false,
-        true
-    )
-| where OperationName != "Unknown" and Duration > 0
+    OperationName = name,
+    Duration = duration,
+    Success = success
+| where isnotempty(OperationName) and Duration > 0
 | summarize 
     Count = count(),
     AvgDuration = avg(Duration),
@@ -29,4 +14,21 @@ union dependencies, traces
     P99Duration = percentile(Duration, 99),
     SuccessRate = todouble(countif(Success == true)) / count() * 100
 by OperationName
+| order by AvgDuration desc
+
+// Custom event performance (for events with duration)
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where isnotempty(customDimensions["duration_ms"])
+| extend 
+    EventName = tostring(customDimensions["event.name"]),
+    Duration = todouble(customDimensions["duration_ms"])
+| where isnotempty(EventName) and Duration > 0
+| summarize 
+    Count = count(),
+    AvgDuration = avg(Duration),
+    P95Duration = percentile(Duration, 95),
+    P99Duration = percentile(Duration, 99)
+by EventName
 | order by AvgDuration desc

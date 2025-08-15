@@ -1,7 +1,9 @@
 // Peak Usage Hours
 // Bot usage by hour of day (UTC)
-union traces, dependencies
-| where message contains "Custom Event: Message_Received"
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] == "Message_Received"
 | extend HourOfDay = hourofday(timestamp)
 | summarize MessageCount = count() by HourOfDay
 | render columnchart title="Bot Usage by Hour (UTC)"

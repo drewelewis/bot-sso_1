@@ -1,0 +1,66 @@
+// Distributed Tracing Analysis
+// Track complete request flows from Teams Bot to FastAPI service
+// Shows connected traces across service boundaries
+
+// Find connected traces between bot and external AI service
+let botCalls = dependencies
+| where timestamp > ago(7d)
+| where name == "External_AI_API"
+| project timestamp, operation_Id, name, duration, success, data, customDimensions;
+
+let externalAPICalls = dependencies
+| where timestamp > ago(7d)
+| where name contains "agent_chat" or name contains "POST" and data contains "agent_chat"
+| project timestamp, operation_Id, name, duration, success, data, customDimensions;
+
+// Join to show connected traces
+botCalls
+| join kind=inner externalAPICalls on operation_Id
+| project 
+    timestamp,
+    operation_Id,
+    BotCall = name,
+    BotDuration = duration,
+    BotSuccess = success,
+    ExternalCall = name1,
+    ExternalDuration = duration1,
+    ExternalSuccess = success1,
+    TotalDuration = duration + duration1,
+    BotData = tostring(customDimensions["url"]),
+    SessionId = tostring(customDimensions["sessionId"])
+| order by timestamp desc
+
+// Alternative: Show all operations in the same trace
+dependencies
+| where timestamp > ago(7d)
+| where operation_Id in (
+    dependencies 
+    | where name == "External_AI_API" 
+    | distinct operation_Id
+)
+| project timestamp, operation_Id, ServiceName = name, duration, success, data
+| order by operation_Id, timestamp asc
+
+// Performance analysis of connected traces
+dependencies
+| where timestamp > ago(7d)
+| where operation_Id in (
+    dependencies 
+    | where name == "External_AI_API" 
+    | distinct operation_Id
+)
+| summarize 
+    TotalDuration = sum(duration),
+    ServiceCount = dcount(name),
+    Services = make_set(name),
+    AllSuccessful = min(toint(success))
+by operation_Id
+| extend IsFullySuccessful = AllSuccessful == 1
+| summarize 
+    AvgTotalDuration = avg(TotalDuration),
+    SuccessRate = avg(toint(IsFullySuccessful)) * 100,
+    AvgServiceCount = avg(ServiceCount)
+| project 
+    AvgTotalDuration_ms = AvgTotalDuration,
+    SuccessRate_percent = SuccessRate,
+    AvgServicesInvolved = AvgServiceCount

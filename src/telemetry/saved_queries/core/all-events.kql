@@ -1,36 +1,25 @@
 // All Bot Events Overview 
 // Overview of all bot events from OpenTelemetry implementation
-// Note: Custom events and messages appear as dependencies/spans, not traces
 
 dependencies
 | where timestamp > ago(7d)
 | where name in ("Bot Message", "Custom Event") or 
-       (name contains "Operation" or name == "Exception")
+       (type == "InProc" and name != "" and name !contains "get_" and name !contains "POST /openai")
 | extend EventType = case(
     name == "Bot Message", "Bot Message",
     name == "Custom Event", "Custom Event", 
-    name contains "Operation", "Operation",
-    name == "Exception", "Exception",
+    type == "InProc" and name !in ("Bot Message", "Custom Event"), "Operation",
     "Other"
 )
 | extend EventName = case(
-    customDimensions["event.name"] == "Message_Received", "Message_Received",
-    customDimensions["event.name"] == "AI_Response_Requested", "AI_Response_Requested", 
-    customDimensions["event.name"] == "AI_Response_Sent", "AI_Response_Sent",
-    customDimensions["event.name"] == "SSO_Command_Triggered", "SSO_Command_Triggered",
-    customDimensions["event.name"] == "SSO_Dialog_Started", "SSO_Dialog_Started",
-    customDimensions["event.name"] == "SSO_Dialog_Completed", "SSO_Dialog_Completed",
-    customDimensions["event.name"] == "External_AI_Request", "External_AI_Request",
-    customDimensions["event.name"] == "External_AI_Success", "External_AI_Success", 
-    customDimensions["event.name"] == "External_AI_Error", "External_AI_Error",
-    customDimensions["event.name"] == "Clear_History_Started", "Clear_History_Started",
-    customDimensions["event.name"] == "Clear_History_Success", "Clear_History_Success",
-    customDimensions["event.name"] == "ProactiveMessage_Sent", "ProactiveMessage_Sent",
-    customDimensions["event.name"] == "Application_Started", "Application_Started",
-    customDimensions["event.name"] == "Application_Shutdown", "Application_Shutdown",
-    name, // Use the span name if no specific event name
-    "Other"
+    // Extract event name from Custom Event spans
+    name == "Custom Event" and isnotempty(customDimensions["event.name"]), tostring(customDimensions["event.name"]),
+    // Use operation name for operation spans
+    name == "ProactiveMessage", "ProactiveMessage",
+    name == "Bot Message", "Bot_Message",
+    // For other operations, use the name directly
+    name
 )
-| where EventName != "Other"
+| where EventName != "Other" and EventName != ""
 | summarize Count = count() by EventName, bin(timestamp, 1h)
 | render timechart

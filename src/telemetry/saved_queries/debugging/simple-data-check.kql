@@ -1,13 +1,38 @@
 // Simple Data Check - What telemetry data exists?
 // Run this first to see what's actually in your Application Insights
 
-// Check traces table (console.log data)
-traces
-| where timestamp > ago(30d)  // Extended to 30 days
-| project timestamp, message, severityLevel, customDimensions
+// Check dependencies table (OpenTelemetry spans)
+dependencies
+| where timestamp > ago(7d)
+| project timestamp, name, data, duration, success, customDimensions
 | order by timestamp desc
-| take 50  // More results
+| take 50
 
-// Alternative: Check if ANY data exists in traces
-// traces
-// | count
+// Check for custom events specifically
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| project timestamp, customDimensions["event.name"], customDimensions["user.id"], customDimensions
+| order by timestamp desc
+| take 20
+
+// Check requests table (HTTP requests)
+requests
+| where timestamp > ago(7d)
+| project timestamp, name, url, duration, resultCode, customDimensions
+| order by timestamp desc
+| take 20
+
+// Check exceptions table (errors)
+exceptions
+| where timestamp > ago(7d)
+| project timestamp, type, outerMessage, customDimensions
+| order by timestamp desc
+| take 10
+
+// Count totals by table
+union (dependencies | summarize count=count(), table="dependencies"),
+      (requests | summarize count=count(), table="requests"),
+      (exceptions | summarize count=count(), table="exceptions"),
+      (traces | summarize count=count(), table="traces")
+| order by count desc

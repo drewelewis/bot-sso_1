@@ -1,7 +1,8 @@
 // User Conversation Patterns
 // Messages per user session analysis from OpenTelemetry events
-traces
-| where message contains "Custom Event: Message_Received"
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and customDimensions["event.name"] == "AI_Response_Sent"
 | extend 
     UserId = tostring(customDimensions["userId"]),
     ConversationId = tostring(customDimensions["conversationId"])

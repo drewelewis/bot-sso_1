@@ -24,6 +24,12 @@ import { telemetryService } from "./telemetry";
 // OpenTelemetry is now initialized in otel-init.ts
 telemetryService.initialize();
 
+// Track application startup
+telemetryService.trackCustomEvent('Application_Started', {
+  environment: config.environment,
+  timestamp: new Date().toISOString()
+});
+
 // Create adapter.
 // See https://aka.ms/about-bot-adapter to learn more about adapters.
 const credentialsFactory = new ConfigurationServiceClientCredentialFactory(
@@ -270,4 +276,33 @@ expressApp.get(["/auth-start.html", "/auth-end.html"], async (req, res) => {
       req.url.includes("auth-start.html") ? "auth-start.html" : "auth-end.html"
     )
   ).pipe(res);
+});
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, shutting down gracefully...');
+  telemetryService.trackCustomEvent('Application_Shutdown', {
+    environment: config.environment,
+    timestamp: new Date().toISOString(),
+    reason: 'SIGINT'
+  });
+  
+  // Give telemetry time to flush before exiting
+  setTimeout(() => {
+    process.exit(0);
+  }, 1000);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down gracefully...');
+  telemetryService.trackCustomEvent('Application_Shutdown', {
+    environment: config.environment,
+    timestamp: new Date().toISOString(),
+    reason: 'SIGTERM'
+  });
+  
+  // Give telemetry time to flush before exiting
+  setTimeout(() => {
+    process.exit(0);
+  }, 1000);
 });

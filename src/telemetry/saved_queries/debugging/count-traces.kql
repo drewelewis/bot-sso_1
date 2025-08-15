@@ -1,3 +1,5 @@
-// Just count traces to see if ANY exist
-traces
+// Count bot telemetry data in dependencies table
+// This shows how much telemetry data your bot is generating
+dependencies
+| where type == "InProc" and name != ""
 | count

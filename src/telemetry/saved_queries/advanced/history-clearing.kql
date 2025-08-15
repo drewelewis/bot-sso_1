@@ -1,18 +1,17 @@
 // Conversation History Clearing Patterns
 // How often users clear their history via OpenTelemetry events
-traces
-| where message contains "Custom Event:" and (
-    message contains "Clear_History_Started" or
-    message contains "Clear_History_Success" or 
-    message contains "Clear_History_Failed"
-)
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] in ("Clear_History_Started", "Clear_History_Success", "Clear_History_Failed")
 | extend 
-    UserId = tostring(customDimensions["userId"]),
-    Success = message contains "Clear_History_Success",
+    UserId = tostring(customDimensions["user.id"]),
+    EventName = tostring(customDimensions["event.name"]),
+    Success = customDimensions["event.name"] == "Clear_History_Success",
     EventType = case(
-        message contains "Clear_History_Started", "Started",
-        message contains "Clear_History_Success", "Success",
-        message contains "Clear_History_Failed", "Failed",
+        customDimensions["event.name"] == "Clear_History_Started", "Started",
+        customDimensions["event.name"] == "Clear_History_Success", "Success",
+        customDimensions["event.name"] == "Clear_History_Failed", "Failed",
         "Unknown"
     )
 | summarize 

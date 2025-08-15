@@ -1,20 +1,39 @@
 // All Exceptions and Errors
-// Exception tracking from both exceptions table and error traces
-union exceptions, traces
-| where itemType == "exception" 
-     or (itemType == "trace" and (severityLevel >= 3 or message contains "❌ Exception:" or message contains "Operation Failed:"))
-| extend ErrorSource = case(
-    itemType == "exception", "Exception Table",
-    message contains "❌ Exception:", "Telemetry Service",
-    message contains "Operation Failed:", "Operation Failure",
-    severityLevel >= 3, "High Severity Trace",
-    "Other"
-)
-| extend ErrorType = case(
-    itemType == "exception", type,
-    message contains "❌ Exception:", "Tracked Exception",
-    message contains "Operation Failed:", "Operation Error",
-    "Trace Error"
-)
+// Exception tracking from exceptions table, failed dependencies, and error events
+
+// Get exceptions from exceptions table
+let ExceptionData = exceptions
+| where timestamp > ago(7d)
+| extend ErrorSource = "Exception Table", ErrorType = type
+| project timestamp, ErrorSource, ErrorType, outerMessage, customDimensions;
+
+// Get failed operations from dependencies
+let FailedDependencies = dependencies
+| where timestamp > ago(7d)
+| where success == false
+| extend ErrorSource = "Failed Dependency", ErrorType = strcat("Failed: ", name)
+| project timestamp, ErrorSource, ErrorType, data, customDimensions;
+
+// Get error events from custom events
+let ErrorEvents = dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] has_any ("Error", "Exception", "Failed")
+| extend ErrorSource = "Custom Event", ErrorType = tostring(customDimensions["event.name"])
+| project timestamp, ErrorSource, ErrorType, customDimensions;
+
+// Get high severity traces
+let HighSeverityTraces = traces
+| where timestamp > ago(7d)
+| where severityLevel >= 3
+| extend ErrorSource = "High Severity Trace", ErrorType = "Trace Error"
+| project timestamp, ErrorSource, ErrorType, message, customDimensions;
+
+// Combine all error sources
+union 
+    (ExceptionData | project timestamp, ErrorSource, ErrorType),
+    (FailedDependencies | project timestamp, ErrorSource, ErrorType),
+    (ErrorEvents | project timestamp, ErrorSource, ErrorType),
+    (HighSeverityTraces | project timestamp, ErrorSource, ErrorType)
 | summarize Count = count() by ErrorType, bin(timestamp, 1h)
 | render timechart

@@ -1,7 +1,9 @@
 // Check What Data You Have
 // Basic data exploration for OpenTelemetry implementation
-// Shows recent traces with key fields for debugging
-traces 
+// Shows recent dependencies (where your bot data actually goes)
+dependencies 
 | where timestamp > ago(1h)
-| project timestamp, message, severityLevel, customDimensions
+| where type == "InProc" // Focus on internal bot operations
+| project timestamp, name, type, success, duration, customDimensions
+| order by timestamp desc
 | take 20

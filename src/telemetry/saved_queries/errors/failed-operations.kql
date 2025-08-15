@@ -1,22 +1,29 @@
 // Failed Operations
 // Operations that failed in OpenTelemetry implementation
-union traces, dependencies
-| where (itemType == "trace" and message contains "Operation Failed:") or
-       (itemType == "dependency" and success == false)
-| extend OperationName = case(
-    itemType == "dependency", name,
-    message contains "Operation Failed:", extract(@"Operation Failed: ([^,]+)", 1, message),
-    "Unknown"
-)
-| extend ErrorDetails = case(
-    itemType == "dependency", resultCode,
-    itemType == "trace", tostring(customDimensions["error"]),
-    ""
-)
-| where OperationName != "Unknown"
+
+// Failed dependencies
+dependencies
+| where timestamp > ago(7d)
+| where success == false
+| extend OperationName = name
+| extend ErrorDetails = resultCode
 | summarize 
     ErrorCount = count(),
     UniqueErrors = make_set(ErrorDetails),
     LatestFailure = max(timestamp)
 by OperationName, bin(timestamp, 1h)
 | render timechart
+
+// Failed custom events (events with error indicators)
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] has_any ("Failed", "Error", "Exception")
+| extend 
+    OperationName = tostring(customDimensions["event.name"]),
+    ErrorDetails = tostring(customDimensions["error"])
+| summarize 
+    ErrorCount = count(),
+    UniqueErrors = make_set(ErrorDetails),
+    LatestFailure = max(timestamp)
+by OperationName, bin(timestamp, 1h)

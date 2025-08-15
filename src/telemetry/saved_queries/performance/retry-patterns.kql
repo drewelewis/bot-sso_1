@@ -1,8 +1,8 @@
 // Retry Pattern Analysis
 // Look for retry patterns in AI requests from OpenTelemetry events
-traces
-| where message contains "Custom Event: External_AI_Request" or 
-       message contains "Custom Event: AI_Response_Requested"
+dependencies
+| where timestamp > ago(7d) 
+| where name == "Custom Event" and customDimensions["event.name"] in ("External_AI_Request", "External_AI_Success")
 | extend 
     UserId = tostring(customDimensions["userId"]),
     ConversationId = tostring(customDimensions["conversationId"]),

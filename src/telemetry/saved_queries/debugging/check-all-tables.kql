@@ -1,8 +1,13 @@
 // Check All Tables - Find where data might be
 // Run this to see what tables have any data at all
 
-// Check if any data exists anywhere
-union traces, dependencies, exceptions, requests, customEvents, pageViews
-| where timestamp > ago(30d)
-| summarize count() by $table
-| order by count_ desc
+// Check each table individually and combine results
+let tracesCount = traces | where timestamp > ago(30d) | count | extend TableName = "traces";
+let dependenciesCount = dependencies | where timestamp > ago(30d) | count | extend TableName = "dependencies";
+let exceptionsCount = exceptions | where timestamp > ago(30d) | count | extend TableName = "exceptions";
+let requestsCount = requests | where timestamp > ago(30d) | count | extend TableName = "requests";
+let customEventsCount = customEvents | where timestamp > ago(30d) | count | extend TableName = "customEvents";
+let pageViewsCount = pageViews | where timestamp > ago(30d) | count | extend TableName = "pageViews";
+union tracesCount, dependenciesCount, exceptionsCount, requestsCount, customEventsCount, pageViewsCount
+| project TableName, Count
+| order by Count desc

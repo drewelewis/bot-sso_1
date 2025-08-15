@@ -1,8 +1,15 @@
 // Most Active Users
 // Users with highest message count
-union traces, dependencies
-| where message contains "Custom Event: Message_Received" or message contains "Custom Event: SSO_Dialog_Started"
-| extend UserId = tostring(customDimensions["userId"])
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] in ("Message_Received", "SSO_Dialog_Started")
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
+)
 | where isnotempty(UserId) and UserId != "unknown"
 | summarize MessageCount = count() by UserId
 | top 10 by MessageCount

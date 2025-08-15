@@ -1,12 +1,19 @@
 // Message Type Analysis
-// What types of messages are users sending via OpenTelemetry
-traces
-| where message contains "Custom Event: Message_Received"
+// What types of messages and events are being tracked via OpenTelemetry
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and isnotempty(customDimensions["event.name"])
 | extend MessageType = case(
-    isnotempty(customDimensions["messageType"]), tostring(customDimensions["messageType"]),
-    isnotempty(customDimensions["activityType"]), tostring(customDimensions["activityType"]),
-    "unknown"
+    customDimensions["event.name"] == "AI_Response_Sent", "AI Response",
+    customDimensions["event.name"] == "ProactiveMessage_Sent", "Proactive Message",
+    customDimensions["event.name"] == "External_AI_Success", "External AI Call",
+    customDimensions["event.name"] == "SSO_Dialog_Started", "SSO Authentication",
+    customDimensions["event.name"] contains "Message", "User Message",
+    customDimensions["event.name"] contains "AI", "AI Related",
+    customDimensions["event.name"] contains "SSO", "SSO Related",
+    customDimensions["event.name"] contains "Proactive", "Proactive Related",
+    "Other Event"
 )
-| where MessageType != "unknown"
+| where MessageType != "Other Event"
 | summarize Count = count() by MessageType
-| render piechart title="Message Types Distribution"
+| render piechart title="Bot Event Types Distribution"

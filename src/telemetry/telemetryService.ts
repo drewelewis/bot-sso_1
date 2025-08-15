@@ -1,4 +1,4 @@
-import { trace, metrics, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
+import { trace, metrics, context, SpanStatusCode, SpanKind, propagation } from '@opentelemetry/api';
 import { TurnContext } from 'botbuilder';
 
 export interface TelemetryEvent {
@@ -178,6 +178,23 @@ export class TelemetryService {
     };
 
     return timer;
+  }
+
+  /**
+   * Get trace headers for distributed tracing
+   * Use this to propagate trace context to external services
+   */
+  getTraceHeaders(): Record<string, string> {
+    if (!this.isInitialized) {
+      return {};
+    }
+
+    const headers: Record<string, string> = {};
+    
+    // Inject current trace context into headers for distributed tracing
+    propagation.inject(context.active(), headers);
+    
+    return headers;
   }
 
   flush(): Promise<void> {

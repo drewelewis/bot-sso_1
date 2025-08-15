@@ -1,6 +1,15 @@
 // Message Volume Over Time
-// Shows bot message volume by hour from OpenTelemetry traces
-traces
-| where message contains "Custom Event: Message_Received" or message contains "Bot Message:"
-| summarize MessageCount = count() by bin(timestamp, 1h)
+// Track volume of bot messages and interactions
+
+dependencies
+| where timestamp > ago(7d)
+| where (name == "Custom Event" and customDimensions["event.name"] in ("AI_Response_Sent", "ProactiveMessage_Sent")) 
+    or name == "Bot Message"
+| extend MessageType = case(
+    name == "Bot Message", "Bot Message",
+    customDimensions["event.name"] == "AI_Response_Sent", "AI Response",
+    customDimensions["event.name"] == "ProactiveMessage_Sent", "Proactive Message",
+    "Other"
+)
+| summarize MessageCount = count() by MessageType, bin(timestamp, 1h)
 | render timechart

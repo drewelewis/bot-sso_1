@@ -1,0 +1,32 @@
+// Quick Data Check - What do we actually have?
+// Run this to see what's in your Application Insights
+
+// Count total records by table
+union 
+    (dependencies | summarize count=count(), table="dependencies"),
+    (requests | summarize count=count(), table="requests"),
+    (exceptions | summarize count=count(), table="exceptions"),
+    (traces | summarize count=count(), table="traces")
+| order by count desc
+
+// Show recent dependencies sample
+dependencies
+| where timestamp > ago(24h)
+| take 5
+| project timestamp, name, data, customDimensions
+
+// Show all dependency names
+dependencies
+| where timestamp > ago(7d)
+| summarize count() by name
+| order by count_1 desc
+
+// Check for any custom dimensions with user info
+dependencies
+| where timestamp > ago(7d)
+| where isnotempty(customDimensions)
+| extend keys = bag_keys(customDimensions)
+| mv-expand keys
+| extend keyname = tostring(keys)
+| summarize count() by keyname
+| order by count_1 desc

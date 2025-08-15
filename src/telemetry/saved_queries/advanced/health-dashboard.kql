@@ -1,31 +1,65 @@
 // Service Health Dashboard (Advanced)
 // Comprehensive health metrics using OpenTelemetry data
 let timeWindow = 1h;
-let messages = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: Message_Received" | count;
-let errors = union exceptions, traces | where timestamp > ago(timeWindow) and (itemType == "exception" or message contains "❌ Exception:" or message contains "Operation Failed:") | count;
-let avgResponseTime = union traces, dependencies
-    | where timestamp > ago(timeWindow) and (
-        message contains "Custom Event: Message_Received" or 
-        name contains "MessageHandler" or 
-        name contains "AI_Response"
-    )
-    | extend ResponseTime = case(
-        message contains "Custom Event: Message_Received", todouble(customDimensions["responseTime"]),
-        itemType == "dependency", duration,
-        0.0
-    )
-    | where ResponseTime > 0
-    | summarize avg(ResponseTime);
-let aiRequests = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: External_AI_Request" | count;
-let aiErrors = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: External_AI_Error" | count;
-let ssoAttempts = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: SSO_Dialog_Started" | count;
-let ssoSuccess = traces | where timestamp > ago(timeWindow) and message contains "Custom Event: SSO_Dialog_Completed" | count;
+
+// Message counts from dependencies
+let messages = dependencies 
+| where timestamp > ago(timeWindow) 
+| where name == "Custom Event" 
+| where customDimensions["event.name"] == "Message_Received" 
+| count;
+
+// Error counts from exceptions and failed dependencies
+let errors = union 
+    (exceptions | where timestamp > ago(timeWindow)),
+    (dependencies | where timestamp > ago(timeWindow) | where success == false),
+    (dependencies | where timestamp > ago(timeWindow) | where name == "Custom Event" | where customDimensions["event.name"] has_any ("Error", "Exception", "Failed"))
+| count;
+
+// Average response time from dependencies and custom events
+let avgResponseTime = dependencies
+| where timestamp > ago(timeWindow)
+| where (name == "Custom Event" and isnotempty(customDimensions["responseTime"])) or
+        (name != "Custom Event" and duration > 0)
+| extend ResponseTime = case(
+    name == "Custom Event", todouble(customDimensions["responseTime"]),
+    duration
+)
+| where ResponseTime > 0
+| summarize avg(ResponseTime);
+
+// AI request metrics
+let aiRequests = dependencies 
+| where timestamp > ago(timeWindow) 
+| where name == "Custom Event" 
+| where customDimensions["event.name"] == "External_AI_Request" 
+| count;
+
+let aiErrors = dependencies 
+| where timestamp > ago(timeWindow) 
+| where name == "Custom Event" 
+| where customDimensions["event.name"] == "External_AI_Error" 
+| count;
+
+// SSO metrics
+let ssoAttempts = dependencies 
+| where timestamp > ago(timeWindow) 
+| where name == "Custom Event" 
+| where customDimensions["event.name"] == "SSO_Dialog_Started" 
+| count;
+
+let ssoSuccess = dependencies 
+| where timestamp > ago(timeWindow) 
+| where name == "Custom Event" 
+| where customDimensions["event.name"] == "SSO_Dialog_Completed" 
+| count;
+
 print 
     Messages = toscalar(messages),
     Errors = toscalar(errors),
     AvgResponseTime_ms = toscalar(avgResponseTime),
     AIRequests = toscalar(aiRequests),
     AIErrors = toscalar(aiErrors),
-    AISuccessRate = round(100.0 * (toscalar(aiRequests) - toscalar(aiErrors)) / toscalar(aiRequests), 2),
+    AISuccessRate = round(100.0 * (toscalar(aiRequests) - toscalar(aiErrors)) / max(toscalar(aiRequests), 1), 2),
     SSOAttempts = toscalar(ssoAttempts),
-    SSOSuccessRate = round(100.0 * toscalar(ssoSuccess) / toscalar(ssoAttempts), 2)
+    SSOSuccessRate = round(100.0 * toscalar(ssoSuccess) / max(toscalar(ssoAttempts), 1), 2)

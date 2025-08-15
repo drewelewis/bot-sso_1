@@ -1,37 +1,54 @@
 // User Engagement Funnel
 // User journey through bot features from OpenTelemetry events
-let users = traces
-| where timestamp > ago(1d) and message contains "Custom Event: Message_Received"
-| extend UserId = tostring(customDimensions["userId"])
+let users = dependencies
+| where timestamp > ago(7d) and name == "Custom Event" and customDimensions["event.name"] == "AI_Response_Sent"
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
+)
 | where isnotempty(UserId)
 | summarize by UserId;
-let ssoUsers = traces
-| where timestamp > ago(1d) and message contains "Custom Event: SSO_Command_Triggered"
-| extend UserId = tostring(customDimensions["userId"])
+
+let ssoUsers = dependencies
+| where timestamp > ago(7d) and name == "Custom Event" and customDimensions["event.name"] == "SSO_Command_Triggered"
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
+)
 | where isnotempty(UserId)
 | summarize by UserId;
-let aiUsers = traces
-| where timestamp > ago(1d) and message contains "Custom Event: AI_Response_Requested"
-| extend UserId = tostring(customDimensions["userId"])
+
+let aiUsers = dependencies
+| where timestamp > ago(7d) and name == "Custom Event" and customDimensions["event.name"] == "External_AI_Success"
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
+)
 | where isnotempty(UserId)
 | summarize by UserId;
-let proactiveUsers = traces
-| where timestamp > ago(1d) and message contains "Custom Event: ProactiveMessage_Sent"
-| extend UserId = tostring(customDimensions["userId"])
+
+let proactiveUsers = dependencies
+| where timestamp > ago(7d) and name == "Custom Event" and customDimensions["event.name"] == "ProactiveMessage_Sent"
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
+)
 | where isnotempty(UserId)
 | summarize by UserId;
-print 
-    TotalUsers = toscalar(users | count),
-    SSOUsers = toscalar(ssoUsers | count),
-    AIUsers = toscalar(aiUsers | count),
-    ProactiveUsers = toscalar(proactiveUsers | count),
-    SSOConversionRate = round(todouble(toscalar(ssoUsers | count)) / todouble(toscalar(users | count)) * 100, 2),
-    AIConversionRate = round(todouble(toscalar(aiUsers | count)) / todouble(toscalar(users | count)) * 100, 2)
-| where isnotempty(UserId)
-| summarize by UserId;
+
 print 
     TotalUsers = toscalar(users | count),
     UsersWhoTriedSSO = toscalar(ssoUsers | count),
     UsersWhoUsedAI = toscalar(aiUsers | count),
-    SSOAdoptionRate = round(100.0 * toscalar(ssoUsers | count) / toscalar(users | count), 2),
-    AIAdoptionRate = round(100.0 * toscalar(aiUsers | count) / toscalar(users | count), 2)
+    UsersWhoGotProactive = toscalar(proactiveUsers | count),
+    SSOAdoptionRate = round(100.0 * toscalar(ssoUsers | count) / max(toscalar(users | count), 1), 2),
+    AIAdoptionRate = round(100.0 * toscalar(aiUsers | count) / max(toscalar(users | count), 1), 2),
+    ProactiveRate = round(100.0 * toscalar(proactiveUsers | count) / max(toscalar(users | count), 1), 2)

@@ -276,9 +276,18 @@ export class TeamsBot extends TeamsActivityHandler {
     // We can use the `Headers` constructor to create headers
     // and assign it as the type of the `headers` variable
     const headers: Headers = new Headers();
-    // Add a few headers
+    // Add standard headers
     headers.set('Content-Type', 'application/json');
     headers.set('Accept', 'application/json');
+    
+    // Add OpenTelemetry trace context for distributed tracing
+    // This connects your bot telemetry with the FastAPI service telemetry
+    const traceHeaders = telemetryService.getTraceHeaders();
+    Object.entries(traceHeaders).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        headers.set(key, value);
+      }
+    });
 
     // Create the request object, which will be a RequestInfo type. 
     // Here, we will pass in the URL as well as the options object as parameters.

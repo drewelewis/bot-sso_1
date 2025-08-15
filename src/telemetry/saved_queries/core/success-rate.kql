@@ -1,14 +1,14 @@
 // Success Rate by Hour
 // Bot operation success rate from OpenTelemetry data
-union traces, dependencies
-| where message contains "Operation Completed:" or message contains "Operation Failed:" 
-     or name contains "MessageHandler" or name contains "AI_Response"
+dependencies
+| where timestamp > ago(7d)
+| where type == "InProc" and name != ""
 | extend Success = case(
-    message contains "Operation Completed:", true,
-    message contains "Operation Failed:", false,
-    itemType == "dependency" and success == true, true,
-    itemType == "dependency" and success == false, false,
-    true  // default for other traces
+    success == true, true,
+    success == false, false,
+    name == "Custom Event" and customDimensions["success"] == "true", true,
+    name == "Custom Event" and customDimensions["success"] == "false", false,
+    true  // default for other operations
 )
 | summarize 
     Total = count(),

@@ -1,0 +1,67 @@
+// Distributed Tracing Debug
+// Troubleshoot distributed tracing setup and connectivity
+// Use this to verify trace propagation is working
+
+// Step 1: Check if External_AI_API calls exist
+let externalAPICalls = dependencies
+| where timestamp > ago(24h)
+| where name == "External_AI_API"
+| summarize Count = count(), LatestCall = max(timestamp);
+
+// Step 2: Check if we have any FastAPI/agent_chat calls  
+let fastAPICalls = dependencies
+| where timestamp > ago(24h)
+| where name contains "agent_chat" or name contains "POST" or name contains "FastAPI"
+| summarize Count = count(), LatestCall = max(timestamp), Names = make_set(name);
+
+// Step 3: Check for connected traces (same operation_Id)
+let connectedTraces = dependencies
+| where timestamp > ago(24h)
+| where operation_Id in (
+    dependencies 
+    | where name == "External_AI_API" 
+    | distinct operation_Id
+)
+| summarize 
+    ServiceCount = dcount(name),
+    Services = make_set(name),
+    TraceCount = dcount(operation_Id)
+by operation_Id
+| where ServiceCount > 1;
+
+// Summary report
+print "=== Distributed Tracing Health Check ===";
+print strcat("Bot External API Calls: ", toscalar(externalAPICalls | project Count));
+print strcat("FastAPI Calls Found: ", toscalar(fastAPICalls | project Count));
+print strcat("Connected Traces: ", toscalar(connectedTraces | count));
+
+// Show recent External_AI_API calls with trace context
+dependencies
+| where timestamp > ago(1h)
+| where name == "External_AI_API"
+| project 
+    timestamp,
+    operation_Id,
+    duration,
+    success,
+    SessionId = tostring(customDimensions["sessionId"]),
+    URL = tostring(customDimensions["url"])
+| order by timestamp desc
+| take 10
+
+// Show what services appear in the same traces
+dependencies
+| where timestamp > ago(24h)
+| where operation_Id in (
+    dependencies 
+    | where name == "External_AI_API" 
+    | distinct operation_Id
+)
+| summarize 
+    Services = make_set(name),
+    MinTimestamp = min(timestamp),
+    MaxTimestamp = max(timestamp),
+    TotalDuration = sum(duration)
+by operation_Id
+| order by MinTimestamp desc
+| take 20

@@ -1,0 +1,15 @@
+// Bot Events Summary - What events are being tracked
+// Shows count of each event type you're actually generating
+
+dependencies
+| where timestamp > ago(7d)
+| where type == "InProc" // Focus on internal bot operations
+| extend EventName = case(
+    name == "Custom Event" and isnotempty(customDimensions["event.name"]), 
+        strcat("Custom Event: ", tostring(customDimensions["event.name"])),
+    name == "Bot Message", "Bot Message",
+    name == "ProactiveMessage", "ProactiveMessage Operation",
+    name
+)
+| summarize Count = count() by EventName
+| order by Count desc

@@ -1,12 +1,15 @@
 // Custom Metrics Analysis
 // Custom events and metrics from OpenTelemetry implementation
-traces
-| where message contains "Custom Event:" 
-| extend EventName = extract(@"Custom Event: ([^,\s]+)", 1, message)
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and isnotempty(customDimensions["event.name"])
+| extend EventName = tostring(customDimensions["event.name"])
 | extend MetricValue = case(
     isnotempty(customDimensions["responseTime"]), todouble(customDimensions["responseTime"]),
     isnotempty(customDimensions["messageLength"]), todouble(customDimensions["messageLength"]),
-    isnotempty(customDimensions["duration_ms"]), todouble(customDimensions["duration_ms"]),
+    isnotempty(customDimensions["responseLength"]), todouble(customDimensions["responseLength"]),
+    isnotempty(customDimensions["availableUsers"]), todouble(customDimensions["availableUsers"]),
+    duration > 0, duration, // Use span duration if available
     1.0  // Default count metric
 )
 | where isnotempty(EventName)
@@ -14,6 +17,7 @@ traces
     EventCount = count(),
     AvgValue = avg(MetricValue),
     MaxValue = max(MetricValue),
-    MinValue = min(MetricValue)
+    MinValue = min(MetricValue),
+    AvgDuration = avg(duration)
 by EventName
 | order by EventCount desc

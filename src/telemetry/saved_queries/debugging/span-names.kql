@@ -1,20 +1,37 @@
 // Find Your Span Names and Event Types
 // See all OpenTelemetry spans and event patterns in your data
-union traces, dependencies
+
+// Check all span names in dependencies
+dependencies
 | where timestamp > ago(24h)
-| extend DataType = case(
-    itemType == "dependency", "Dependency/Span",
-    message contains "Custom Event:", "Custom Event",
-    message contains "Bot Message:", "Bot Message", 
-    message contains "Operation", "Operation",
-    "Other Trace"
-)
-| extend EventName = case(
-    itemType == "dependency", name,
-    message contains "Custom Event:", extract(@"Custom Event: ([^,\s]+)", 1, message),
-    message contains "Operation Started:", extract(@"Operation Started: ([^,]+)", 1, message),
-    message contains "Bot Message:", "Bot Message",
-    "Other"
-)
-| summarize Count = count() by DataType, EventName
+| summarize Count = count() by name
 | order by Count desc
+
+// Check custom event types specifically
+dependencies
+| where timestamp > ago(24h)
+| where name == "Custom Event"
+| extend EventName = tostring(customDimensions["event.name"])
+| summarize Count = count() by EventName
+| order by Count desc
+
+// Check all data types across tables
+union 
+    (dependencies | extend TableName = "dependencies", DataType = name),
+    (requests | extend TableName = "requests", DataType = name),
+    (exceptions | extend TableName = "exceptions", DataType = type),
+    (traces | extend TableName = "traces", DataType = "trace")
+| where timestamp > ago(24h)
+| summarize Count = count() by TableName, DataType
+| order by TableName, Count desc
+
+// Detailed custom dimensions analysis
+dependencies
+| where timestamp > ago(24h)
+| where name == "Custom Event"
+| extend EventName = tostring(customDimensions["event.name"])
+| extend UserId = tostring(customDimensions["user.id"])
+| extend ConversationId = tostring(customDimensions["conversation.id"])
+| project timestamp, EventName, UserId, ConversationId, customDimensions
+| order by timestamp desc
+| take 50

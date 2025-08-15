@@ -1,17 +1,15 @@
 // SSO-Specific Issues
 // SSO authentication problems from OpenTelemetry events
-traces
-| where message contains "Custom Event:" and (
-    message contains "SSO_Token_Missing" or
-    message contains "SSO_Command_Failed_No_Dialog" or
-    message contains "SSO_ConsentRequired" or
-    message contains "SSO_Command_Not_Found"
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and customDimensions["event.name"] in (
+    "SSO_Token_Missing", "SSO_Command_Failed_No_Dialog", "SSO_ConsentRequired", "SSO_Command_Not_Found"
 )
 | extend SSOIssueType = case(
-    message contains "SSO_Token_Missing", "Token Missing",
-    message contains "SSO_Command_Failed_No_Dialog", "No Dialog Available",
-    message contains "SSO_ConsentRequired", "Consent Required",
-    message contains "SSO_Command_Not_Found", "Command Not Found",
+    customDimensions["event.name"] == "SSO_Token_Missing", "Token Missing",
+    customDimensions["event.name"] == "SSO_Command_Failed_No_Dialog", "No Dialog Available",
+    customDimensions["event.name"] == "SSO_ConsentRequired", "Consent Required",
+    customDimensions["event.name"] == "SSO_Command_Not_Found", "Command Not Found",
     "Unknown SSO Issue"
 )
 | extend UserId = tostring(customDimensions["userId"])

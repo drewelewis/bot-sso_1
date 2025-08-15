@@ -1,33 +1,50 @@
 // Error Context Analysis
 // Errors with user context from OpenTelemetry implementation
-union exceptions, traces
-| where itemType == "exception" or 
-       (itemType == "trace" and (
-           message contains "❌ Exception:" or 
-           message contains "Operation Failed:" or 
-           severityLevel >= 3
-       ))
+
+// Get exceptions with user context
+let ExceptionErrors = exceptions
+| where timestamp > ago(7d)
 | extend 
-    ErrorType = case(
-        itemType == "exception", type,
-        message contains "❌ Exception:", "Telemetry Exception",
-        message contains "Operation Failed:", "Operation Failure",
-        "High Severity Trace"
-    ),
-    UserId = case(
-        itemType == "exception", tostring(customDimensions["userId"]),
-        itemType == "trace", tostring(customDimensions["userId"]),
-        "unknown"
-    ),
-    ErrorMessage = case(
-        itemType == "exception", outerMessage,
-        itemType == "trace", message,
-        ""
-    )
-| where UserId != "unknown" and isnotempty(UserId)
+    ErrorType = type,
+    UserId = tostring(customDimensions["user.id"]),
+    ConversationId = tostring(customDimensions["conversation.id"]),
+    ErrorMessage = outerMessage
+| where isnotempty(UserId)
+| project timestamp, ErrorType, UserId, ConversationId, ErrorMessage, customDimensions;
+
+// Get failed dependencies with user context
+let DependencyErrors = dependencies
+| where timestamp > ago(7d)
+| where success == false
+| extend 
+    ErrorType = strcat("Failed: ", name),
+    UserId = tostring(customDimensions["user.id"]),
+    ConversationId = tostring(customDimensions["conversation.id"]),
+    ErrorMessage = data
+| where isnotempty(UserId)
+| project timestamp, ErrorType, UserId, ConversationId, ErrorMessage, customDimensions;
+
+// Get custom error events with user context
+let CustomErrorEvents = dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event"
+| where customDimensions["event.name"] has_any ("Error", "Exception", "Failed")
+| extend 
+    ErrorType = tostring(customDimensions["event.name"]),
+    UserId = tostring(customDimensions["user.id"]),
+    ConversationId = tostring(customDimensions["conversation.id"]),
+    ErrorMessage = tostring(customDimensions["message"])
+| where isnotempty(UserId)
+| project timestamp, ErrorType, UserId, ConversationId, ErrorMessage, customDimensions;
+
+// Combine and analyze
+union ExceptionErrors, DependencyErrors, CustomErrorEvents
 | summarize 
     ErrorCount = count(),
     UniqueErrorTypes = make_set(ErrorType),
-    LatestError = max(timestamp)
+    LatestError = max(timestamp),
+    FirstError = min(timestamp),
+    ConversationIds = make_set(ConversationId)
 by UserId
+| extend DaysSinceFirstError = datetime_diff('day', now(), FirstError)
 | top 10 by ErrorCount

@@ -1,12 +1,30 @@
-// Active Users
-// Daily active users from OpenTelemetry traces
-traces
-| where message contains "Custom Event: Message_Received" or message contains "Bot Message:"
-| extend UserId = case(
-    message contains "Custom Event: Message_Received", tostring(customDimensions["userId"]),
-    message contains "Bot Message:", tostring(customDimensions["userId"]),
-    "unknown"
+// Active Users by Day
+// Daily active users from OpenTelemetry dependencies
+dependencies
+| where timestamp > ago(30d)
+| where name == "Custom Event"
+| extend EventName = tostring(customDimensions["event.name"])
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
 )
 | where isnotempty(UserId) and UserId != "unknown"
 | summarize UniqueUsers = dcount(UserId) by bin(timestamp, 1d)
+| render timechart
+
+// Optional: Show breakdown by event type
+dependencies
+| where timestamp > ago(30d)
+| where name == "Custom Event"
+| extend EventName = tostring(customDimensions["event.name"])
+| extend UserId = coalesce(
+    tostring(customDimensions["user.id"]),
+    tostring(customDimensions["userId"]),
+    tostring(customDimensions["User.Id"]),
+    tostring(customDimensions["user_id"])
+)
+| where isnotempty(UserId) and UserId != "unknown"
+| summarize UniqueUsers = dcount(UserId) by EventName, bin(timestamp, 1d)
 | render timechart

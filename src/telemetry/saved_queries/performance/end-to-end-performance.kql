@@ -1,0 +1,39 @@
+// End-to-End Request Performance
+// Monitor complete request flows from bot to AI service
+// Use this for daily performance monitoring
+
+dependencies
+| where timestamp > ago(24h)
+| where name == "External_AI_API"
+| extend 
+    SessionId = tostring(customDimensions["sessionId"]),
+    ChatId = tostring(customDimensions["chatId"]),
+    URL = tostring(customDimensions["url"]),
+    MessageLength = toint(customDimensions["messageLength"])
+| join kind=leftouter (
+    dependencies
+    | where timestamp > ago(24h)
+    | where name contains "agent_chat" or (name contains "POST" and data contains "agent_chat")
+    | project operation_Id, ExternalDuration = duration, ExternalSuccess = success
+) on operation_Id
+| project 
+    timestamp,
+    operation_Id,
+    BotDuration = duration,
+    ExternalDuration = coalesce(ExternalDuration, 0),
+    TotalDuration = duration + coalesce(ExternalDuration, 0),
+    BotSuccess = success,
+    ExternalSuccess = coalesce(ExternalSuccess, true),
+    EndToEndSuccess = success and coalesce(ExternalSuccess, true),
+    SessionId,
+    MessageLength,
+    URL
+| summarize 
+    RequestCount = count(),
+    AvgBotDuration = avg(BotDuration),
+    AvgExternalDuration = avg(ExternalDuration),
+    AvgTotalDuration = avg(TotalDuration),
+    SuccessRate = avg(toint(EndToEndSuccess)) * 100,
+    P95TotalDuration = percentile(TotalDuration, 95)
+by bin(timestamp, 1h)
+| render timechart

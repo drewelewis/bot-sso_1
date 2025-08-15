@@ -1,20 +1,16 @@
 // Response Time Analysis
-// Bot response time analysis from OpenTelemetry data
-// Looks at operation spans in dependencies table and response times in traces
-union traces, dependencies
-| where (itemType == "trace" and message contains "Custom Event: Message_Received") 
-     or (itemType == "dependency" and name contains "MessageHandler")
-| extend ResponseTime = case(
-    itemType == "trace", todouble(customDimensions["responseTime"]),
-    itemType == "dependency", duration,
-    0.0
-)
+// Analyze bot response times from OpenTelemetry dependencies
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and isnotempty(customDimensions["responseTime"])
+| extend ResponseTime = todouble(customDimensions["responseTime"])
 | where ResponseTime > 0
 | summarize 
     AvgResponseTime = avg(ResponseTime),
     P50ResponseTime = percentile(ResponseTime, 50),
     P95ResponseTime = percentile(ResponseTime, 95),
     P99ResponseTime = percentile(ResponseTime, 99),
+    MaxResponseTime = max(ResponseTime),
     Count = count()
 by bin(timestamp, 1h)
 | render timechart

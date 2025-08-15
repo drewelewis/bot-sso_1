@@ -1,16 +1,19 @@
 // Proactive Messaging Analytics
 // Proactive message flow from OpenTelemetry events
-traces
-| where message contains "Custom Event:" and (
-    message contains "ProactiveMessage_Requested" or
-    message contains "ProactiveMessage_Sent" or
-    message contains "ProactiveMessage_UserNotFound"
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and customDimensions["event.name"] in (
+    "ProactiveMessage_Requested", "ProactiveMessage_Sent", "ProactiveMessage_UserNotFound"
 )
 | extend ProactiveEvent = case(
-    message contains "ProactiveMessage_Requested", "Message Requested",
-    message contains "ProactiveMessage_Sent", "Message Sent",
-    message contains "ProactiveMessage_UserNotFound", "User Not Found",
+    customDimensions["event.name"] == "ProactiveMessage_Requested", "Message Requested",
+    customDimensions["event.name"] == "ProactiveMessage_Sent", "Message Sent",
+    customDimensions["event.name"] == "ProactiveMessage_UserNotFound", "User Not Found",
     "Unknown"
 )
+| extend 
+    UserId = tostring(customDimensions["userId"]),
+    MessageLength = tostring(customDimensions["messageLength"]),
+    AvailableUsers = tostring(customDimensions["availableUsers"])
 | summarize Count = count() by ProactiveEvent, bin(timestamp, 1h)
 | render timechart

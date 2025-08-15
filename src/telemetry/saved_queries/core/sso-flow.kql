@@ -1,21 +1,18 @@
 // SSO Authentication Flow Analysis
 // Tracks SSO authentication steps and success rates from OpenTelemetry
-traces
-| where message contains "Custom Event:" and (
-    message contains "SSO_Dialog_Started" or
-    message contains "SSO_Dialog_Completed" or 
-    message contains "SSO_Command_Triggered" or
-    message contains "SSO_Token_Processed" or
-    message contains "SSO_Token_Missing" or
-    message contains "SSO_ConsentRequired"
+dependencies
+| where timestamp > ago(7d)
+| where name == "Custom Event" and customDimensions["event.name"] in (
+    "SSO_Dialog_Started", "SSO_Dialog_Completed", "SSO_Command_Triggered", 
+    "SSO_Token_Processed", "SSO_Token_Missing", "SSO_ConsentRequired"
 )
 | extend SSOEvent = case(
-    message contains "SSO_Dialog_Started", "Dialog Started",
-    message contains "SSO_Dialog_Completed", "Dialog Completed",
-    message contains "SSO_Command_Triggered", "Command Triggered", 
-    message contains "SSO_Token_Processed", "Token Processed",
-    message contains "SSO_Token_Missing", "Token Missing",
-    message contains "SSO_ConsentRequired", "Consent Required",
+    customDimensions["event.name"] == "SSO_Dialog_Started", "Dialog Started",
+    customDimensions["event.name"] == "SSO_Dialog_Completed", "Dialog Completed",
+    customDimensions["event.name"] == "SSO_Command_Triggered", "Command Triggered", 
+    customDimensions["event.name"] == "SSO_Token_Processed", "Token Processed",
+    customDimensions["event.name"] == "SSO_Token_Missing", "Token Missing",
+    customDimensions["event.name"] == "SSO_ConsentRequired", "Consent Required",
     "Unknown"
 )
 | summarize Count = count() by SSOEvent, bin(timestamp, 1h)
